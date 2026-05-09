@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>React Agent - Code Execution</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <style>
+        #responseArea,
+        #codeOutput {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 4em;
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .tool-list {
+            background-color: #e8f5e8;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        .section-card {
+            margin: 20px 0;
+            border-radius: 12px;
+        }
+
+        /* ======= @ Mention Autocomplete Styles ======= */
+        .question-input-container {
+            position: relative;
+        }
+
+        #mentionDropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 280px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            margin-top: 4px;
+        }
+
+        #mentionDropdown.active {
+            display: block;
+        }
+
+        .mention-header {
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            background: #f5f5f5;
+            border-bottom: 1px solid #eee;
+        }
+
+        .mention-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .mention-item:last-child {
+            border-bottom: none;
+        }
+
+        .mention-item:hover,
+        .mention-item.selected {
+            background-color: #e3f2fd;
+        }
+
+        .mention-item.selected {
+            background-color: #bbdefb;
+        }
+
+        .mention-item .icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 14px;
+        }
+
+        .mention-item.state .icon {
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            color: white;
+        }
+
+        .mention-item.file .icon {
+            background: linear-gradient(135deg, #2196F3, #1565C0);
+            color: white;
+        }
+
+        .mention-item .name {
+            font-weight: 500;
+            color: #333;
+            flex: 1;
+        }
+
+        .mention-item .type-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .mention-item.state .type-badge {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .mention-item.file .type-badge {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .mention-empty {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+        }
+
+        /* Context Chips */
+        #contextChips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            min-height: 0;
+        }
+
+        #contextChips:empty {
+            display: none;
+        }
+
+        .context-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+            animation: chipIn 0.2s ease;
+        }
+
+        @keyframes chipIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .context-chip.state {
+            background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+            color: #2e7d32;
+            border: 1px solid #a5d6a7;
+        }
+
+        .context-chip.file {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            color: #1565c0;
+            border: 1px solid #90caf9;
+        }
+
+        .context-chip .chip-icon {
+            font-size: 16px;
+        }
+
+        .context-chip .chip-remove {
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 2px;
+            opacity: 0.7;
+            transition: opacity 0.15s;
+        }
+
+        .context-chip .chip-remove:hover {
+            opacity: 1;
+        }
+
+        /* Hint text */
+        .input-hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .input-hint kbd {
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 11px;
+            border: 1px solid #ddd;
+        }
+
+        /* ======= Diff Viewer Modal Styles ======= */
+        .diff-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .diff-modal-overlay.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .diff-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-bottom: 1px solid #333;
+        }
+
+        .diff-modal-header h4 {
+            margin: 0;
+            color: white;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .diff-modal-header .close-btn {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .diff-modal-header .close-btn:hover {
+            color: white;
+        }
+
+        .diff-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .diff-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .diff-panel-header {
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .diff-panel.old .diff-panel-header {
+            background: linear-gradient(135deg, #5c1e1e 0%, #3d1515 100%);
+            color: #ff8a8a;
+            border-bottom: 2px solid #ff6b6b;
+        }
+
+        .diff-panel.new .diff-panel-header {
+            background: linear-gradient(135deg, #1e3d1e 0%, #153315 100%);
+            color: #8aff8a;
+            border-bottom: 2px solid #6bff6b;
+        }
+
+        .diff-panel-content {
+            flex: 1;
+            overflow-y: auto;
+            background: #1e1e1e;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .diff-line {
+            display: flex;
+            padding: 2px 0;
+            min-height: 21px;
+        }
+
+        .diff-line-number {
+            width: 50px;
+            text-align: right;
+            padding-right: 12px;
+            color: #666;
+            background: #252525;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .diff-line-content {
+            flex: 1;
+            padding: 0 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        /* Same lines - neutral */
+        .diff-line.same .diff-line-content {
+            color: #d4d4d4;
+            background: #1e1e1e;
+        }
+
+        /* Removed lines - red */
+        .diff-line.remove .diff-line-content,
+        .diff-line.change .diff-panel.old .diff-line-content {
+            background: rgba(255, 100, 100, 0.15);
+            color: #ff8a8a;
+        }
+
+        .diff-panel.old .diff-line.change .diff-line-content,
+        .diff-panel.old .diff-line.remove .diff-line-content {
+            background: rgba(255, 100, 100, 0.2);
+            color: #ff8a8a;
+            text-decoration: line-through;
+            text-decoration-color: rgba(255, 100, 100, 0.5);
+        }
+
+        /* Added lines - green */
+        .diff-line.add .diff-line-content {
+            background: rgba(100, 255, 100, 0.15);
+            color: #8aff8a;
+        }
+
+        .diff-panel.new .diff-line.change .diff-line-content,
+        .diff-panel.new .diff-line.add .diff-line-content {
+            background: rgba(100, 255, 100, 0.2);
+            color: #8aff8a;
+        }
+
+        /* Empty placeholder for alignment */
+        .diff-line.empty {
+            background: #2a2a2a;
+        }
+
+        .diff-line.empty .diff-line-content {
+            background: repeating-linear-gradient(45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(100, 100, 100, 0.1) 10px,
+                    rgba(100, 100, 100, 0.1) 20px);
+        }
+
+        .diff-modal-footer {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-top: 1px solid #333;
+        }
+
+        .diff-modal-footer .btn {
+            min-width: 140px;
+            font-weight: 600;
+            text-transform: none;
+        }
+
+        .diff-modal-footer .btn-revert {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .diff-modal-footer .btn-revert:hover {
+            background: linear-gradient(135deg, #c0392b 0%, #a33025 100%);
+        }
+
+        .diff-modal-footer .btn-approve {
+            background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%);
+        }
+
+        .diff-modal-footer .btn-approve:hover {
+            background: linear-gradient(135deg, #1e8449 0%, #186a3b 100%);
+        }
+
+        .diff-no-changes {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #888;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .diff-no-changes i {
+            font-size: 64px;
+            margin-bottom: 16px;
+            color: #555;
+        }
+
+        /* Diff button in context chips */
+        .context-chip .chip-diff {
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 4px;
+            opacity: 0.7;
+            transition: opacity 0.15s, color 0.15s;
+        }
+
+        .context-chip .chip-diff:hover {
+            opacity: 1;
+            color: #2196F3;
+        }
+    </style>
+</head>
+
+<body class="grey lighten-5">
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="container">
+            <h2>🚀 React Agent</h2>
+            <p class="flow-text">Ask questions in natural language - Attach files with @</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Available Tools -->
+        <div class="card section-card">
+            <div class="card-content">
+                <span class="card-title">🔧 Available Tools</span>
+                <button id="btnLoadTools" class="btn waves-effect waves-light blue">
+                    <i class="material-icons left">refresh</i>Load Tools
+                </button>
+                <div id="toolsList" class="tool-list" style="display: none;">
+                    <strong>Loading tools...</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ask Questions -->
+        <div class="card section-card">
+            <div class="card-content">
+                <span class="card-title">💭 Ask a Question</span>
+                <div class="row" style="margin-top: 1rem; margin-bottom: 0;">
+                    <div class="input-field col s12 question-input-container">
+                        <input id="questionInput" type="text" class="validate" autocomplete="off"
+                            placeholder="Type @ to attach files, then ask your question...">
+                        <label for="questionInput">Your Question</label>
+
+                        <!-- @ Mention Dropdown -->
+                        <div id="mentionDropdown"></div>
+                    </div>
+                </div>
+
+                <!-- Context Chips -->
+                <div id="contextChips"></div>
+
+                <div class="input-hint">
+                    💡 Tip: Type <kbd>@</kbd> to attach workspace files or states as context
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <button id="btnAsk" class="btn waves-effect waves-light green">
+                        <i class="material-icons left">send</i>Ask
+                    </button>
+                </div>
+
+                <!-- Examples -->
+                <div class="card-panel blue lighten-4" style="margin-top: 20px;">
+                    <strong>💡 Try these examples:</strong><br>
+                    • "@protocolo_yuca resume este documento"<br>
+                    • "protocolo de aplicación en yuca"<br>
+                    • "genera una cotización de E-401 para Juan Pérez"
+                </div>
+            </div>
+        </div>
+
+        <!-- Direct Code Execution -->
+        <div class="card section-card">
+            <div class="card-content">
+                <span class="card-title">💻 Execute Code Directly</span>
+                <div class="row" style="margin-top: 1rem;">
+                    <div class="input-field col s12">
+                        <textarea id="codeInput" class="materialize-textarea" placeholder="from servers.minimal.add_simple import add
+result = add(7, 8)
+print(f'7 + 8 = {result}')"></textarea>
+                        <label for="codeInput">Python Code</label>
+                    </div>
+                </div>
+                <button id="btnExecute" class="btn waves-effect waves-light purple">
+                    <i class="material-icons left">play_arrow</i>Execute
+                </button>
+
+                <div style="margin-top: 1rem;">
+                    <strong>Output:</strong>
+                    <div id="codeOutput">Click "Execute" to see output...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Response Area -->
+        <div class="card section-card">
+            <div class="card-content">
+                <span class="card-title">📋 Response</span>
+                <div id="responseArea">Ask a question above to see the response...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diff Viewer Modal -->
+    <div id="diffModal" class="diff-modal-overlay">
+        <div class="diff-modal-header">
+            <h4>
+                <i class="material-icons">compare_arrows</i>
+                <span id="diffModalTitle">Comparar Cambios</span>
+            </h4>
+            <button class="close-btn" onclick="closeDiffModal()">&times;</button>
+        </div>
+
+        <div class="diff-container">
+            <!-- Old Version Panel -->
+            <div class="diff-panel old">
+                <div class="diff-panel-header">
+                    <i class="material-icons">history</i>
+                    Versión Anterior
+                </div>
+                <div id="diffOldContent" class="diff-panel-content"></div>
+            </div>
+
+            <!-- New Version Panel -->
+            <div class="diff-panel new">
+                <div class="diff-panel-header">
+                    <i class="material-icons">fiber_new</i>
+                    Versión Actual
+                </div>
+                <div id="diffNewContent" class="diff-panel-content"></div>
+            </div>
+        </div>
+
+        <div class="diff-modal-footer">
+            <button id="btnRevert" class="btn waves-effect waves-light btn-revert" onclick="revertDiff()">
+                <i class="material-icons left">undo</i>Revertir
+            </button>
+            <button id="btnApprove" class="btn waves-effect waves-light btn-approve" onclick="approveDiff()">
+                <i class="material-icons left">check</i>Aprobar
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+        // =========== DOM Elements ===========
+        const btnLoadTools = document.getElementById("btnLoadTools");
+        const toolsList = document.getElementById("toolsList");
+        const questionInput = document.getElementById("questionInput");
+        const btnAsk = document.getElementById("btnAsk");
+        const responseArea = document.getElementById("responseArea");
+        const codeInput = document.getElementById("codeInput");
+        const btnExecute = document.getElementById("btnExecute");
+        const codeOutput = document.getElementById("codeOutput");
+        const mentionDropdown = document.getElementById("mentionDropdown");
+        const contextChips = document.getElementById("contextChips");
+
+        // =========== State ===========
+        let attachedFiles = [];  // { name: string, type: 'state'|'file', content: string }
+        let allMentionItems = []; // Cached list of all available items
+        let mentionState = {
+            active: false,
+            startPos: 0,
+            items: [],
+            selectedIndex: 0
+        };
+
+        // =========== Load Mention Items ===========
+        async function loadMentionItems() {
+            try {
+                // Load both states and files in parallel
+                const [stateRes, filesRes] = await Promise.all([
+                    fetch("/api/workspace/state"),
+                    fetch("/api/workspace/files")
+                ]);
+
+                const stateData = await stateRes.json();
+                const filesData = await filesRes.json();
+
+                allMentionItems = [];
+
+                // Add states
+                if (stateData.state && typeof stateData.state === 'object') {
+                    for (const key of Object.keys(stateData.state)) {
+                        if (!key.startsWith('_')) { // Skip internal keys
+                            const content = stateData.state[key];
+                            allMentionItems.push({
+                                name: key,
+                                type: 'state',
+                                content: typeof content === 'string' ? content : JSON.stringify(content)
+                            });
+                        }
+                    }
+                }
+
+                // Add files
+                if (filesData.files && Array.isArray(filesData.files)) {
+                    for (const filename of filesData.files) {
+                        allMentionItems.push({
+                            name: filename,
+                            type: 'file',
+                            content: null // Will be loaded on selection
+                        });
+                    }
+                }
+
+                console.log(`📋 Loaded ${allMentionItems.length} mention items`);
+            } catch (e) {
+                console.error("Error loading mention items:", e);
+            }
+        }
+
+        // =========== Filter Mention Items ===========
+        function filterMentionItems(query) {
+            if (!query) return allMentionItems;
+            const lowerQuery = query.toLowerCase();
+            return allMentionItems.filter(item =>
+                item.name.toLowerCase().includes(lowerQuery)
+            );
+        }
+
+        // =========== Render Dropdown ===========
+        function renderDropdown(items) {
+            if (items.length === 0) {
+                mentionDropdown.innerHTML = `
+                    <div class="mention-empty">
+                        <i class="material-icons" style="font-size: 32px; color: #ccc;">search_off</i>
+                        <p>No matching files or states</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group by type
+            const states = items.filter(i => i.type === 'state');
+            const files = items.filter(i => i.type === 'file');
+
+            let html = '';
+
+            if (states.length > 0) {
+                html += '<div class="mention-header">📦 Agent States</div>';
+                states.forEach((item, idx) => {
+                    const globalIdx = items.indexOf(item);
+                    html += `
+                        <div class="mention-item state ${globalIdx === mentionState.selectedIndex ? 'selected' : ''}" 
+                             data-index="${globalIdx}">
+                            <div class="icon"><i class="material-icons" style="font-size: 16px;">data_object</i></div>
+                            <span class="name">${escapeHtml(item.name)}</span>
+                            <span class="type-badge">state</span>
+                        </div>
+                    `;
+                });
+            }
+
+            if (files.length > 0) {
+                html += '<div class="mention-header">📄 Workspace Files</div>';
+                files.forEach((item, idx) => {
+                    const globalIdx = items.indexOf(item);
+                    html += `
+                        <div class="mention-item file ${globalIdx === mentionState.selectedIndex ? 'selected' : ''}" 
+                             data-index="${globalIdx}">
+                            <div class="icon"><i class="material-icons" style="font-size: 16px;">description</i></div>
+                            <span class="name">${escapeHtml(item.name)}</span>
+                            <span class="type-badge">file</span>
+                        </div>
+                    `;
+                });
+            }
+
+            mentionDropdown.innerHTML = html;
+
+            // Add click handlers
+            mentionDropdown.querySelectorAll('.mention-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    const idx = parseInt(el.dataset.index);
+                    selectMentionItem(mentionState.items[idx]);
+                });
+            });
+        }
+
+        // =========== Show/Hide Dropdown ===========
+        function showDropdown() {
+            mentionDropdown.classList.add('active');
+            mentionState.active = true;
+        }
+
+        function hideDropdown() {
+            mentionDropdown.classList.remove('active');
+            mentionState.active = false;
+            mentionState.selectedIndex = 0;
+        }
+
+        // =========== Select Mention Item ===========
+        async function selectMentionItem(item) {
+            if (!item) return;
+
+            // Load file content if needed
+            let content = item.content;
+            if (item.type === 'file' && !content) {
+                try {
+                    const res = await fetch("/api/workspace/files/read", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ filename: item.name })
+                    });
+                    const data = await res.json();
+                    content = data.content || "";
+                } catch (e) {
+                    console.error("Error loading file:", e);
+                    content = "";
+                }
+            }
+
+            // Add to attached files (avoid duplicates)
+            if (!attachedFiles.some(f => f.name === item.name && f.type === item.type)) {
+                attachedFiles.push({
+                    name: item.name,
+                    type: item.type,
+                    content: content
+                });
+            }
+
+            // Remove @ mention from input
+            const value = questionInput.value;
+            const beforeMention = value.substring(0, mentionState.startPos);
+            const afterMention = value.substring(questionInput.selectionStart);
+            questionInput.value = beforeMention + afterMention;
+            questionInput.focus();
+            questionInput.setSelectionRange(mentionState.startPos, mentionState.startPos);
+
+            // Update UI
+            renderChips();
+            hideDropdown();
+
+            M.toast({ html: `📎 Attached: ${item.name}` });
+        }
+
+        // =========== Render Chips ===========
+        function renderChips() {
+            contextChips.innerHTML = attachedFiles.map((file, idx) => `
+                <div class="context-chip ${file.type}">
+                    <i class="material-icons chip-icon">${file.type === 'state' ? 'data_object' : 'description'}</i>
+                    <span>${escapeHtml(file.name)}</span>
+                    ${file.type === 'state' ? `<i class="material-icons chip-diff" data-name="${escapeHtml(file.name)}" title="Ver Diff">compare_arrows</i>` : ''}
+                    <i class="material-icons chip-remove" data-index="${idx}">close</i>
+                </div>
+            `).join('');
+
+            // Add remove handlers
+            contextChips.querySelectorAll('.chip-remove').forEach(el => {
+                el.addEventListener('click', () => {
+                    const idx = parseInt(el.dataset.index);
+                    attachedFiles.splice(idx, 1);
+                    renderChips();
+                });
+            });
+
+            // Add diff handlers
+            contextChips.querySelectorAll('.chip-diff').forEach(el => {
+                el.addEventListener('click', () => {
+                    const name = el.dataset.name;
+                    openDiffViewer(name);
+                });
+            });
+        }
+
+        // =========== Input Event Handler ===========
+        function onInputChange(e) {
+            const value = questionInput.value;
+            const cursorPos = questionInput.selectionStart;
+
+            // Find if we're in an @ mention
+            let mentionStart = -1;
+            for (let i = cursorPos - 1; i >= 0; i--) {
+                if (value[i] === '@') {
+                    mentionStart = i;
+                    break;
+                }
+                if (value[i] === ' ' || value[i] === '\n') break;
+            }
+
+            if (mentionStart >= 0) {
+                const query = value.substring(mentionStart + 1, cursorPos);
+                mentionState.startPos = mentionStart;
+                mentionState.items = filterMentionItems(query);
+                mentionState.selectedIndex = 0;
+                renderDropdown(mentionState.items);
+                showDropdown();
+            } else {
+                hideDropdown();
+            }
+        }
+
+        // =========== Keyboard Handler ===========
+        function onKeyDown(e) {
+            if (!mentionState.active) {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    askQuestion();
+                }
+                return;
+            }
+
+            switch (e.key) {
+                case "ArrowDown":
+                    e.preventDefault();
+                    mentionState.selectedIndex = Math.min(
+                        mentionState.selectedIndex + 1,
+                        mentionState.items.length - 1
+                    );
+                    renderDropdown(mentionState.items);
+                    scrollToSelected();
+                    break;
+
+                case "ArrowUp":
+                    e.preventDefault();
+                    mentionState.selectedIndex = Math.max(mentionState.selectedIndex - 1, 0);
+                    renderDropdown(mentionState.items);
+                    scrollToSelected();
+                    break;
+
+                case "Enter":
+                case "Tab":
+                    e.preventDefault();
+                    if (mentionState.items.length > 0) {
+                        selectMentionItem(mentionState.items[mentionState.selectedIndex]);
+                    }
+                    break;
+
+                case "Escape":
+                    e.preventDefault();
+                    hideDropdown();
+                    break;
+            }
+        }
+
+        function scrollToSelected() {
+            const selected = mentionDropdown.querySelector('.mention-item.selected');
+            if (selected) {
+                selected.scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        // =========== Utility ===========
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // =========== Load Tools ===========
+        async function loadTools() {
+            try {
+                btnLoadTools.disabled = true;
+                btnLoadTools.innerHTML = '<i class="material-icons left">hourglass_empty</i>Loading...';
+
+                const res = await fetch("/api/tools");
+                const data = await res.json();
+
+                let toolsHtml = "<strong>🔧 Available Functions:</strong><br><br>";
+                if (data.tools && Array.isArray(data.tools)) {
+                    toolsHtml += data.tools.map(t => `• ${t.name}`).join("<br>");
+                } else {
+                    for (const [server, tools] of Object.entries(data.tools || {})) {
+                        toolsHtml += `<strong>${server}:</strong> ${tools.join(", ")}<br>`;
+                    }
+                }
+
+                toolsList.innerHTML = toolsHtml;
+                toolsList.style.display = "block";
+
+                M.toast({ html: '✅ Tools loaded successfully!' });
+            } catch (e) {
+                M.toast({ html: `❌ Error loading tools: ${e.message}` });
+                toolsList.innerHTML = "❌ Failed to load tools";
+                toolsList.style.display = "block";
+            } finally {
+                btnLoadTools.disabled = false;
+                btnLoadTools.innerHTML = '<i class="material-icons left">refresh</i>Load Tools';
+            }
+        }
+
+        // =========== Ask Question ===========
+        async function askQuestion() {
+            const question = questionInput.value.trim();
+            if (!question && attachedFiles.length === 0) {
+                M.toast({ html: '⚠️ Please enter a question or attach files!' });
+                return;
+            }
+
+            try {
+                btnAsk.disabled = true;
+                btnAsk.innerHTML = '<i class="material-icons left">hourglass_empty</i>Processing...';
+                responseArea.textContent = "🤖 Processing your request...";
+
+                // Build context_files from attached files
+                const contextFiles = attachedFiles.map(f => ({
+                    name: `${f.type}:${f.name}`,
+                    content: f.content
+                }));
+
+                const res = await fetch("/api/ask", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        question: question,
+                        context_files: contextFiles.length > 0 ? contextFiles : undefined
+                    }),
+                });
+
+                const data = await res.json();
+                responseArea.textContent = data.answer || "No response received.";
+
+                // Show tools used if any
+                if (data.tools_used && data.tools_used.length > 0) {
+                    responseArea.textContent += `\n\n🔧 Tools used: ${data.tools_used.join(', ')}`;
+                }
+
+                M.toast({ html: '✅ Question processed!' });
+
+                // Clear attached files after successful submission
+                attachedFiles = [];
+                renderChips();
+
+            } catch (err) {
+                responseArea.textContent = `❌ Error: ${err.message}`;
+                M.toast({ html: '❌ Failed to process question' });
+            } finally {
+                btnAsk.disabled = false;
+                btnAsk.innerHTML = '<i class="material-icons left">send</i>Ask';
+            }
+        }
+
+        // =========== Execute Code ===========
+        async function executeCode() {
+            const code = codeInput.value.trim();
+            if (!code) {
+                M.toast({ html: '⚠️ Please enter some Python code!' });
+                return;
+            }
+
+            try {
+                btnExecute.disabled = true;
+                btnExecute.innerHTML = '<i class="material-icons left">hourglass_empty</i>Executing...';
+                codeOutput.textContent = "⏳ Executing code...";
+
+                const res = await fetch("/api/execute", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code: code }),
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    codeOutput.textContent = data.output || "✅ Code executed successfully (no output)";
+                    M.toast({ html: '✅ Code executed!' });
+                } else {
+                    codeOutput.textContent = `❌ Error: ${data.error}\n\n${data.traceback || ""}`;
+                    M.toast({ html: '❌ Code execution failed' });
+                }
+            } catch (err) {
+                codeOutput.textContent = `❌ Request failed: ${err.message}`;
+                M.toast({ html: '❌ Request failed' });
+            } finally {
+                btnExecute.disabled = false;
+                btnExecute.innerHTML = '<i class="material-icons left">play_arrow</i>Execute';
+            }
+        }
+
+        // =========== Diff Viewer Functions ===========
+        let currentDiffState = {
+            stateKey: null,
+            previousHash: null
+        };
+
+        async function openDiffViewer(stateKey) {
+            try {
+                M.toast({ html: '🔄 Cargando diff...' });
+
+                const res = await fetch(`/api/diff/${encodeURIComponent(stateKey)}`);
+                const data = await res.json();
+
+                if (!data.success) {
+                    M.toast({ html: `❌ Error: ${data.error || 'No se pudo cargar el diff'}` });
+                    return;
+                }
+
+                currentDiffState.stateKey = stateKey;
+                currentDiffState.previousHash = data.previous_hash;
+
+                // Update modal title
+                document.getElementById('diffModalTitle').textContent = `Comparar: ${stateKey}`;
+
+                // Render diff panels
+                const oldPanel = document.getElementById('diffOldContent');
+                const newPanel = document.getElementById('diffNewContent');
+
+                if (!data.has_changes) {
+                    // No changes to show
+                    oldPanel.innerHTML = `
+                        <div class="diff-no-changes">
+                            <i class="material-icons">check_circle</i>
+                            <h5>Sin cambios</h5>
+                            <p>El documento no tiene cambios desde la última versión guardada.</p>
+                        </div>
+                    `;
+                    newPanel.innerHTML = oldPanel.innerHTML;
+                    document.getElementById('btnRevert').disabled = true;
+                } else {
+                    // Render side-by-side diff
+                    renderDiffPanels(data.diff, oldPanel, newPanel);
+                    document.getElementById('btnRevert').disabled = false;
+                }
+
+                // Show modal
+                document.getElementById('diffModal').classList.add('active');
+
+                // Prevent body scroll
+                document.body.style.overflow = 'hidden';
+
+            } catch (err) {
+                console.error('Error opening diff viewer:', err);
+                M.toast({ html: `❌ Error: ${err.message}` });
+            }
+        }
+
+        function renderDiffPanels(diffLines, oldPanel, newPanel) {
+            let oldHtml = '';
+            let newHtml = '';
+            let oldLineNum = 1;
+            let newLineNum = 1;
+
+            for (const line of diffLines) {
+                const escapedOld = escapeHtml(line.old || '');
+                const escapedNew = escapeHtml(line.new || '');
+
+                switch (line.type) {
+                    case 'same':
+                        oldHtml += `
+                            <div class="diff-line same">
+                                <div class="diff-line-number">${oldLineNum++}</div>
+                                <div class="diff-line-content">${escapedOld || '&nbsp;'}</div>
+                            </div>`;
+                        newHtml += `
+                            <div class="diff-line same">
+                                <div class="diff-line-number">${newLineNum++}</div>
+                                <div class="diff-line-content">${escapedNew || '&nbsp;'}</div>
+                            </div>`;
+                        break;
+
+                    case 'remove':
+                        oldHtml += `
+                            <div class="diff-line remove">
+                                <div class="diff-line-number">${oldLineNum++}</div>
+                                <div class="diff-line-content">${escapedOld || '&nbsp;'}</div>
+                            </div>`;
+                        newHtml += `
+                            <div class="diff-line empty">
+                                <div class="diff-line-number"></div>
+                                <div class="diff-line-content">&nbsp;</div>
+                            </div>`;
+                        break;
+
+                    case 'add':
+                        oldHtml += `
+                            <div class="diff-line empty">
+                                <div class="diff-line-number"></div>
+                                <div class="diff-line-content">&nbsp;</div>
+                            </div>`;
+                        newHtml += `
+                            <div class="diff-line add">
+                                <div class="diff-line-number">${newLineNum++}</div>
+                                <div class="diff-line-content">${escapedNew || '&nbsp;'}</div>
+                            </div>`;
+                        break;
+
+                    case 'change':
+                        oldHtml += `
+                            <div class="diff-line change">
+                                <div class="diff-line-number">${line.old ? oldLineNum++ : ''}</div>
+                                <div class="diff-line-content">${escapedOld || '&nbsp;'}</div>
+                            </div>`;
+                        newHtml += `
+                            <div class="diff-line change">
+                                <div class="diff-line-number">${line.new ? newLineNum++ : ''}</div>
+                                <div class="diff-line-content">${escapedNew || '&nbsp;'}</div>
+                            </div>`;
+                        break;
+                }
+            }
+
+            oldPanel.innerHTML = oldHtml;
+            newPanel.innerHTML = newHtml;
+
+            // Sync scrolling between panels
+            oldPanel.onscroll = () => { newPanel.scrollTop = oldPanel.scrollTop; };
+            newPanel.onscroll = () => { oldPanel.scrollTop = newPanel.scrollTop; };
+        }
+
+        function closeDiffModal() {
+            document.getElementById('diffModal').classList.remove('active');
+            document.body.style.overflow = '';
+            currentDiffState.stateKey = null;
+            currentDiffState.previousHash = null;
+        }
+
+        function approveDiff() {
+            // Just close the modal - the current version is already saved
+            M.toast({ html: '✅ Versión actual aprobada' });
+            closeDiffModal();
+        }
+
+        async function revertDiff() {
+            if (!currentDiffState.previousHash) {
+                M.toast({ html: '❌ No hay versión anterior para revertir' });
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/checkpoints/restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hash: currentDiffState.previousHash })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    M.toast({ html: '🔄 Revertido a versión anterior' });
+                    closeDiffModal();
+
+                    // Refresh mention items to get updated state
+                    await loadMentionItems();
+
+                    // Update attached files content if any
+                    for (const file of attachedFiles) {
+                        if (file.type === 'state' && file.name === currentDiffState.stateKey) {
+                            // Reload content from state
+                            const stateRes = await fetch('/api/workspace/state');
+                            const stateData = await stateRes.json();
+                            if (stateData.state && stateData.state[file.name]) {
+                                file.content = stateData.state[file.name];
+                            }
+                        }
+                    }
+                } else {
+                    M.toast({ html: `❌ Error: ${data.error || 'No se pudo revertir'}` });
+                }
+            } catch (err) {
+                console.error('Error reverting:', err);
+                M.toast({ html: `❌ Error: ${err.message}` });
+            }
+        }
+
+        // =========== Event Listeners ===========
+        btnLoadTools.addEventListener("click", loadTools);
+        btnAsk.addEventListener("click", askQuestion);
+        btnExecute.addEventListener("click", executeCode);
+
+        questionInput.addEventListener("input", onInputChange);
+        questionInput.addEventListener("keydown", onKeyDown);
+
+        // Close dropdown when clicking outside
+        document.addEventListener("click", (e) => {
+            if (!mentionDropdown.contains(e.target) && e.target !== questionInput) {
+                hideDropdown();
+            }
+        });
+
+        // =========== Initialize ===========
+        window.addEventListener("DOMContentLoaded", async () => {
+            await loadMentionItems();
+            await loadTools();
+        });
+    </script>
+</body>
+
+</html>

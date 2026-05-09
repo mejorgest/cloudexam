@@ -1,0 +1,75 @@
+# ============== SECRETS — never commit ==============
+.env
+.env.*
+!.env.example
+data/secrets.json
+data/secrets.json.tmp
+gen-lang-client-*.json
+*service-account*.json
+*credentials*.json
+
+# ============== Python ==============
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# ============== Node / Frontend ==============
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+node_modules/
+
+# ============== Persistent runtime data ==============
+# Whole workspace and data dirs are runtime — only the structure should be re-created
+workspace/
+data/
+sandbox/
+
+# ============== Logs / temp ==============
+*.log
+*.tmp
+*.bak
+*.swp
+.DS_Store
+
+# ============== Large binaries / dumps ==============
+*.tar
+*.tar.gz
+*.zip
+mcp-agent.tar
+
+# ============== Exam data (medical PDFs/JSON/HTML in repo root) ==============
+*.pdf
+/cendeiss*.html
+/cendeiss*.json
+/unidos_examenes*.html
+/unidos_examenes*.json
+/MB30-*
+/cendeisss_*.json
+/mas_examenes_*.json
+/response.json
+
+# ============== IDE / agent state ==============
+.vscode/
+.idea/
+.claude/
+.agents/
+
+# ============== Backups created during cleanup ==============
+_container_backup_*/
+_archived/
+tsagentexam_backup_*.tar.gz
+
+# ============== Misc artifacts ==============
+Captura desde *.png
+"Nueva carpeta"/
+temp_utf8_req.txt
+
+# ============== Legacy internal notes (kept locally, not published) ==============
+docs/legacy/

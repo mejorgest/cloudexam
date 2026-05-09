@@ -1,0 +1,54 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv
+venv
+.env.local
+
+# Node.js - frontend dev dependencies (built in Docker)
+frontend/node_modules
+frontend/.vite
+frontend/dist
+
+# Git
+.git
+.gitignore
+
+# Docker
+*.tar
+Dockerfile*
+.docker*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs and temp
+*.log
+*.tmp
+app.log
+
+# Tests
+test_*
+*_test.py
+
+# Large data files (mount these instead)
+*.json.bak
+mcp-agent.tar
+
+# Documentation (optional - remove if needed in container)
+*.md
+docs/
+
+# Caches
+.cache/
+.npm/
+.pytest_cache/
+
+# Mac
+.DS_Store

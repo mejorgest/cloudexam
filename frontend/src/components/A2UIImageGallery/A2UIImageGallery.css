@@ -1,0 +1,460 @@
+/**
+ * A2UI Image Gallery Styles
+ * =========================
+ * Modern, glassmorphism design for medical images in exam justifications.
+ * Includes refine button, new-image badges, and RAG score indicators.
+ */
+
+.a2ui-gallery-wrapper {
+    margin-top: 16px;
+    border: 1px solid rgba(135, 206, 235, 0.3);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.05));
+    overflow: hidden;
+    transition: border-color 0.3s, background 0.3s;
+}
+
+/* Refined state wrapper */
+.a2ui-gallery-wrapper.refined {
+    border-color: rgba(16, 185, 129, 0.3);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(59, 130, 246, 0.04));
+}
+
+/* Header - updated layout for refine button */
+.a2ui-gallery-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.a2ui-gallery-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.a2ui-gallery-header-left:hover {
+    opacity: 0.85;
+}
+
+.a2ui-gallery-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.a2ui-gallery-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary, #c9d1d9);
+    white-space: nowrap;
+}
+
+.a2ui-keywords-hint {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--text-muted, #8b949e);
+    margin-left: auto;
+    padding: 2px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.a2ui-toggle {
+    font-size: 10px;
+    color: var(--text-muted, #8b949e);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.a2ui-toggle.expanded {
+    transform: rotate(180deg);
+}
+
+/* ========== Refine Button ========== */
+.a2ui-refine-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15));
+    color: var(--accent-purple, #bc8cff);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.a2ui-refine-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.3));
+    border-color: rgba(139, 92, 246, 0.6);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.a2ui-refine-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.a2ui-refine-btn.refining {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
+}
+
+.a2ui-refine-btn.refined {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(59, 130, 246, 0.15));
+    color: var(--accent-green, #7ee787);
+}
+
+.a2ui-spin {
+    animation: a2ui-spin 1s linear infinite;
+}
+
+/* ========== Refine Stats ========== */
+.a2ui-refine-stats {
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--text-muted, #8b949e);
+    background: rgba(16, 185, 129, 0.06);
+    border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.a2ui-new-count {
+    color: var(--accent-green, #7ee787);
+    font-weight: 600;
+}
+
+/* ========== Content ========== */
+.a2ui-gallery-content {
+    padding: 12px;
+}
+
+.a2ui-gallery-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    color: var(--text-muted, #8b949e);
+    font-size: 12px;
+}
+
+.a2ui-loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(59, 130, 246, 0.2);
+    border-top-color: var(--accent-blue, #58a6ff);
+    border-radius: 50%;
+    animation: a2ui-spin 0.8s linear infinite;
+}
+
+@keyframes a2ui-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========== Image Grid ========== */
+.a2ui-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+/* Single Image Container */
+.a2ui-image-container {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+    aspect-ratio: 4/3;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.a2ui-image-container:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+.a2ui-image-container.loading {
+    pointer-events: none;
+}
+
+/* New Image Indicator */
+.a2ui-image-container.is-new {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.4);
+}
+
+.a2ui-image-container.is-new:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(16, 185, 129, 0.6);
+}
+
+.a2ui-image-skeleton {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.05) 100%);
+    background-size: 200% 100%;
+    animation: a2ui-shimmer 1.5s infinite;
+    color: var(--text-muted, #8b949e);
+}
+
+@keyframes a2ui-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.a2ui-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s;
+}
+
+.a2ui-image-container.loading .a2ui-image {
+    opacity: 0;
+}
+
+/* New badge */
+.a2ui-new-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    background: linear-gradient(135deg, #10b981, #3b82f6);
+    border-radius: 6px;
+    z-index: 5;
+    animation: a2ui-badge-pop 0.3s ease;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+@keyframes a2ui-badge-pop {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    70% {
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* RAG Score */
+.a2ui-rag-score {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    border-radius: 4px;
+    z-index: 5;
+}
+
+/* ========== Overlay on hover ========== */
+.a2ui-image-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+.a2ui-image-container:hover .a2ui-image-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.a2ui-zoom-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.a2ui-zoom-btn:hover {
+    background: rgba(59, 130, 246, 0.6);
+    transform: scale(1.1);
+}
+
+/* ========== Caption ========== */
+.a2ui-image-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 10px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.3;
+    pointer-events: none;
+}
+
+.a2ui-image-category {
+    display: inline-block;
+    padding: 1px 6px;
+    margin-right: 6px;
+    background: rgba(59, 130, 246, 0.6);
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* ========== Error state ========== */
+.a2ui-image-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 20px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px dashed rgba(239, 68, 68, 0.3);
+    border-radius: 10px;
+    color: rgba(239, 68, 68, 0.8);
+    font-size: 11px;
+}
+
+/* ========== Modal Overlay ========== */
+.a2ui-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    pointer-events: auto;
+    animation: a2ui-fade-in 0.2s ease;
+}
+
+@keyframes a2ui-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.a2ui-modal-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: a2ui-scale-in 0.2s ease;
+}
+
+@keyframes a2ui-scale-in {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.a2ui-modal-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.a2ui-modal-close:hover {
+    background: rgba(239, 68, 68, 0.6);
+}
+
+.a2ui-modal-image {
+    max-width: 100%;
+    max-height: 80vh;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.a2ui-modal-caption {
+    margin-top: 16px;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    max-width: 600px;
+    text-align: center;
+}

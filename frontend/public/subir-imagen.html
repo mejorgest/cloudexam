@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📸 Subir Imagen Médica</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .upload-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #00d4ff;
+            font-size: 0.95em;
+        }
+
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .file-upload {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            border: 3px dashed rgba(0, 212, 255, 0.5);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .file-upload:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .file-upload input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .file-upload-text {
+            font-size: 1.1em;
+            color: #aaa;
+        }
+
+        .file-name {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: rgba(0, 212, 255, 0.2);
+            border-radius: 8px;
+            color: #00d4ff;
+            display: none;
+        }
+
+        .preview-container {
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .preview-container img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #00d4ff, #7b2cbf);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.2em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 16px;
+            display: none;
+        }
+
+        .result.success {
+            background: rgba(0, 255, 136, 0.15);
+            border: 2px solid rgba(0, 255, 136, 0.5);
+        }
+
+        .result.error {
+            background: rgba(255, 107, 107, 0.15);
+            border: 2px solid rgba(255, 107, 107, 0.5);
+        }
+
+        .result h3 {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-info {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px 20px;
+            font-size: 0.95em;
+        }
+
+        .result-info dt {
+            color: #888;
+        }
+
+        .result-info dd {
+            color: #fff;
+            word-break: break-all;
+        }
+
+        .url-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .url-box:hover {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .keywords-hint {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 8px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(0, 212, 255, 0.2);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .images-list {
+            margin-top: 50px;
+        }
+
+        .images-list h2 {
+            margin-bottom: 20px;
+            color: #00d4ff;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .image-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .image-card-info {
+            padding: 15px;
+        }
+
+        .image-card-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .image-card-category {
+            font-size: 0.8em;
+            color: #7b2cbf;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📸 Subir Imagen Médica</h1>
+
+        <div class="upload-card">
+            <form id="uploadForm">
+                <!-- File Upload -->
+                <div class="form-group">
+                    <label>🖼️ Imagen</label>
+                    <div class="file-upload" id="dropZone">
+                        <input type="file" id="fileInput" name="file" accept="image/*" required>
+                        <div class="file-upload-icon">📁</div>
+                        <div class="file-upload-text">Arrastra una imagen o haz clic para seleccionar</div>
+                        <div class="file-name" id="fileName"></div>
+                    </div>
+                    <div class="preview-container" id="previewContainer">
+                        <img id="preview" alt="Vista previa">
+                    </div>
+                </div>
+
+                <!-- Title -->
+                <div class="form-group">
+                    <label>📝 Título</label>
+                    <input type="text" id="title" name="title"
+                        placeholder="Ej: Células en Canasta - Leucemia Linfocítica">
+                </div>
+
+                <!-- Keywords -->
+                <div class="form-group">
+                    <label>🏷️ Keywords (separados por coma)</label>
+                    <input type="text" id="keywords" name="keywords"
+                        placeholder="leucemia, células en canasta, LLC, hematología" required>
+                    <p class="keywords-hint">
+                        💡 Tip: Usa palabras que describan la imagen. Estos keywords se usarán para buscar la imagen
+                        automáticamente.
+                    </p>
+                </div>
+
+                <!-- Category -->
+                <div class="form-group">
+                    <label>📁 Categoría</label>
+                    <select id="category" name="category">
+                        <option value="hematología">🩸 Hematología</option>
+                        <option value="cardiología">❤️ Cardiología</option>
+                        <option value="neurología">🧠 Neurología</option>
+                        <option value="neumología">🫁 Neumología</option>
+                        <option value="anatomía">🦴 Anatomía</option>
+                        <option value="patología">🔬 Patología</option>
+                        <option value="radiología">📷 Radiología</option>
+                        <option value="general">📋 General</option>
+                    </select>
+                </div>
+
+                <!-- Description -->
+                <div class="form-group">
+                    <label>📄 Descripción (opcional)</label>
+                    <textarea id="description" name="description"
+                        placeholder="Descripción detallada de la imagen..."></textarea>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    🚀 Subir Imagen
+                </button>
+            </form>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Subiendo imagen y generando embeddings...</p>
+            </div>
+
+            <!-- Result -->
+            <div class="result" id="result">
+                <h3 id="resultTitle"></h3>
+                <dl class="result-info" id="resultInfo"></dl>
+                <div class="url-box" id="urlBox" title="Click para copiar"></div>
+            </div>
+        </div>
+
+        <!-- Existing Images -->
+        <div class="images-list">
+            <h2>🖼️ Imágenes Registradas</h2>
+            <div class="images-grid" id="imagesGrid">
+                <!-- Loaded dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';  // Same origin
+
+        // File preview
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const preview = document.getElementById('preview');
+        const previewContainer = document.getElementById('previewContainer');
+
+        fileInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                fileName.style.display = 'block';
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    preview.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Form submit
+        const form = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('title', document.getElementById('title').value);
+            formData.append('keywords', document.getElementById('keywords').value);
+            formData.append('category', document.getElementById('category').value);
+            formData.append('description', document.getElementById('description').value);
+
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/subir-imagen`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                loading.style.display = 'none';
+                result.style.display = 'block';
+
+                if (data.success) {
+                    result.className = 'result success';
+                    document.getElementById('resultTitle').innerHTML = '✅ Imagen subida correctamente';
+                    document.getElementById('resultInfo').innerHTML = `
+                        <dt>ID:</dt><dd>${data.id}</dd>
+                        <dt>Título:</dt><dd>${data.title}</dd>
+                        <dt>Keywords:</dt><dd>${data.keywords.join(', ')}</dd>
+                        <dt>Categoría:</dt><dd>${data.category}</dd>
+                        <dt>Embeddings RAG:</dt><dd>${data.embeddings_generated ? '✅ Generados' : '⏳ Pendiente'}</dd>
+                    `;
+                    document.getElementById('urlBox').textContent = data.http_url;
+                    document.getElementById('urlBox').onclick = () => {
+                        navigator.clipboard.writeText(data.http_url);
+                        alert('URL copiada: ' + data.http_url);
+                    };
+
+                    // Reload images list
+                    loadImages();
+
+                    // Reset form
+                    form.reset();
+                    fileName.style.display = 'none';
+                    previewContainer.style.display = 'none';
+                } else {
+                    result.className = 'result error';
+                    document.getElementById('resultTitle').innerHTML = '❌ Error';
+                    document.getElementById('resultInfo').innerHTML = `<dt>Error:</dt><dd>${data.error}</dd>`;
+                    document.getElementById('urlBox').style.display = 'none';
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                result.style.display = 'block';
+                result.className = 'result error';
+                document.getElementById('resultTitle').innerHTML = '❌ Error de conexión';
+                document.getElementById('resultInfo').innerHTML = `<dt>Error:</dt><dd>${error.message}</dd>`;
+            }
+
+            submitBtn.disabled = false;
+        });
+
+        // Load existing images
+        async function loadImages() {
+            try {
+                const response = await fetch(`${API_BASE}/api/medical-images`);
+                const data = await response.json();
+
+                const grid = document.getElementById('imagesGrid');
+                grid.innerHTML = '';
+
+                if (data.images && data.images.length > 0) {
+                    data.images.forEach(img => {
+                        const card = document.createElement('div');
+                        card.className = 'image-card';
+                        card.innerHTML = `
+                            <img src="/api/medical-images/${img.id}" alt="${img.title}" 
+                                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖼️</text></svg>'">
+                            <div class="image-card-info">
+                                <div class="image-card-title">${img.title || 'Sin título'}</div>
+                                <div class="image-card-category">${img.category || 'general'}</div>
+                            </div>
+                        `;
+                        card.onclick = () => window.open(`/api/medical-images/${img.id}`, '_blank');
+                        grid.appendChild(card);
+                    });
+                } else {
+                    grid.innerHTML = '<p style="color: #888; grid-column: 1/-1;">No hay imágenes registradas</p>';
+                }
+            } catch (error) {
+                console.error('Error loading images:', error);
+            }
+        }
+
+        // Load images on page load
+        loadImages();
+    </script>
+</body>
+
+</html>
