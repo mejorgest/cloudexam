@@ -25,9 +25,9 @@ export function Sidebar() {
     const [examResult, setExamResult] = useState<{ success: boolean; message: string } | null>(null);
     const examFileRef = useRef<HTMLInputElement>(null);
 
-    // Auto-close sidebar drawer on mobile after selecting something.
+    // Auto-close sidebar drawer on mobile/tablet-portrait after selecting something.
     const closeOnMobile = useCallback(() => {
-        if (window.innerWidth < 768) setSidebarOpen(false);
+        if (window.innerWidth < 900) setSidebarOpen(false);
     }, [setSidebarOpen]);
 
     // Open a file in a tab.

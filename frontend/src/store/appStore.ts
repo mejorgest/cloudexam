@@ -101,9 +101,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     isLoading: false,
     debugOpen: false,
     a2uiImagesEnabled: localStorage.getItem('a2uiImagesEnabled') === 'true',
-    // On mobile, panels start hidden; on wider screens visible.
-    sidebarOpen: typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
-    chatOpen: typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
+    // On mobile/tablet portrait, panels start hidden; on wider screens visible.
+    sidebarOpen: typeof window !== 'undefined' ? window.innerWidth >= 900 : true,
+    chatOpen: typeof window !== 'undefined' ? window.innerWidth >= 900 : true,
 
     messages: [{
         id: 'initial',

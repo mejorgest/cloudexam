@@ -124,8 +124,11 @@ button,
 /* ============== Layout ============== */
 .app-container {
   display: flex;
+  /* Use dynamic viewport height so the mobile browser chrome doesn't crop us. */
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  position: relative;
 }
 
 /* ============== Sidebar ============== */
@@ -1896,17 +1899,76 @@ button,
   }
 }
 
-/* ============== Mobile drawers (sidebar + chat) ============== */
+/* ============== Mobile topbar + drawer layout ============== */
+
+/* Topbar is hidden on desktop; shown via media query below. */
+.mobile-topbar {
+  display: none;
+}
+
 .mobile-backdrop {
   display: none;
 }
 
-.drawer-fab {
-  display: none;
-}
+/* Breakpoint: phones + tablet portrait. Above 900px = classic three-pane. */
+@media (max-width: 900px) {
+  /* Topbar always visible */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    height: 48px;
+    padding: 0 8px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 220;
+    /* Respect the iOS notch / Android status bar */
+    padding-top: env(safe-area-inset-top, 0);
+    height: calc(48px + env(safe-area-inset-top, 0));
+  }
 
-@media (max-width: 768px) {
-  /* Both panels become absolute drawers; editor takes the full width */
+  .topbar-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--text-primary);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .topbar-btn:active {
+    background: var(--bg-hover);
+  }
+
+  .topbar-title {
+    flex: 1;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 4px;
+  }
+
+  /* Push every panel below the topbar */
+  .app-container .editor-panel,
+  .app-container .sidebar,
+  .app-container .chat-panel {
+    padding-top: calc(48px + env(safe-area-inset-top, 0));
+  }
+
+  /* Sidebar + chat become off-canvas drawers */
   .app-container .sidebar,
   .app-container .chat-panel {
     position: fixed;
@@ -1914,6 +1976,7 @@ button,
     bottom: 0;
     z-index: 200;
     width: min(85vw, 320px);
+    height: 100dvh;
     transition: transform 0.25s ease-out;
     box-shadow: 0 0 24px rgba(0, 0, 0, 0.45);
   }
@@ -1937,7 +2000,7 @@ button,
     transform: translateX(0);
   }
 
-  /* Backdrop dims the editor when any drawer is open */
+  /* Backdrop appears when any drawer is open */
   .app-container.sidebar-open .mobile-backdrop,
   .app-container.chat-open .mobile-backdrop {
     display: block;
@@ -1947,39 +2010,10 @@ button,
     z-index: 150;
   }
 
-  /* Floating action buttons to toggle drawers */
-  .drawer-fab {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: fixed;
-    bottom: 16px;
-    z-index: 250;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: none;
-    background: var(--accent-blue, #2563eb);
-    color: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    cursor: pointer;
-  }
-
-  .drawer-fab:active {
-    transform: scale(0.95);
-  }
-
-  .drawer-fab-left {
-    left: 16px;
-  }
-
-  .drawer-fab-right {
-    right: 16px;
-  }
-
-  /* Push the existing settings FAB up so it doesn't collide */
-  .config-fab {
-    bottom: 70px !important;
+  /* Editor takes full width since sidebar/chat are overlays */
+  .app-container .editor-panel {
+    width: 100%;
+    flex: 1;
   }
 
   /* Make exam cards readable on small screens */
@@ -1987,12 +2021,17 @@ button,
     padding: 10px;
     font-size: 14px;
   }
-}
 
-/* On desktop, drawers are always rendered; just hide the toggle FABs. */
-@media (min-width: 769px) {
-  .drawer-fab {
-    display: none;
+  /* Move the settings FAB so it doesn't overlap the topbar buttons */
+  .config-fab {
+    top: auto !important;
+    bottom: 16px !important;
+    right: 16px !important;
+    width: 40px !important;
+    height: 40px !important;
+    background: var(--bg-tertiary) !important;
+    border: 1px solid var(--border-primary) !important;
+    opacity: 0.95 !important;
   }
 }
 

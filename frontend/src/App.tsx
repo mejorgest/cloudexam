@@ -56,10 +56,43 @@ interface MainProps {
 function Main({ onOpenSettings, settingsOpen, onCloseSettings }: MainProps) {
     useWebSocket();
     useDataPolling();
-    const { sidebarOpen, chatOpen, toggleSidebar, toggleChat, setSidebarOpen, setChatOpen } = useAppStore();
+    const {
+        sidebarOpen,
+        chatOpen,
+        toggleSidebar,
+        toggleChat,
+        setSidebarOpen,
+        setChatOpen,
+        selectedKey,
+    } = useAppStore();
+
+    const titleFromKey = selectedKey
+        ? selectedKey.replace('file:', '').replace('__images__', 'Imágenes médicas')
+        : 'cloudexam';
 
     return (
         <div className={`app-container ${sidebarOpen ? 'sidebar-open' : ''} ${chatOpen ? 'chat-open' : ''}`}>
+            {/* Mobile topbar — only visible on small screens */}
+            <header className="mobile-topbar">
+                <button
+                    className="topbar-btn"
+                    onClick={toggleSidebar}
+                    title="Mostrar/ocultar archivos"
+                    aria-label="Toggle sidebar"
+                >
+                    <Menu size={22} />
+                </button>
+                <span className="topbar-title">{titleFromKey}</span>
+                <button
+                    className="topbar-btn"
+                    onClick={toggleChat}
+                    title="Mostrar/ocultar chat"
+                    aria-label="Toggle chat"
+                >
+                    <MessageSquare size={22} />
+                </button>
+            </header>
+
             <Sidebar />
             <EditorPanel />
             <ChatPanel />
@@ -73,24 +106,6 @@ function Main({ onOpenSettings, settingsOpen, onCloseSettings }: MainProps) {
                     aria-hidden
                 />
             )}
-
-            {/* Mobile FABs to toggle drawers — hidden on desktop via CSS */}
-            <button
-                className="drawer-fab drawer-fab-left"
-                onClick={toggleSidebar}
-                title="Mostrar/ocultar archivos"
-                aria-label="Toggle sidebar"
-            >
-                <Menu size={20} />
-            </button>
-            <button
-                className="drawer-fab drawer-fab-right"
-                onClick={toggleChat}
-                title="Mostrar/ocultar chat"
-                aria-label="Toggle chat"
-            >
-                <MessageSquare size={20} />
-            </button>
 
             {/* Settings access — always available from main UI */}
             <button
