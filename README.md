@@ -11,8 +11,9 @@ y consulta una base local de PDFs e imágenes médicas indexada en pgvector.
   con opciones de respuesta (parser + LLM).
 - **Análisis por pregunta**: cada pregunta tiene botones para analizar con el
   agente o buscar evidencia en Google.
-- **RAG médico**: indexa PDFs médicos en pgvector y permite búsquedas
-  semánticas sobre el corpus.
+- **Ingesta de PDFs en pgvector**: opcional. Procesa y trocea PDFs médicos,
+  guarda embeddings en Postgres + pgvector para alimentar futuras tools de
+  búsqueda semántica.
 - **Imágenes médicas**: galería A2UI con imágenes anotadas por keywords;
   el agente puede enriquecer respuestas con imágenes relevantes.
 - **State persistente**: el agente mantiene un workspace de archivos y un state
@@ -78,14 +79,16 @@ static/, templates/              # assets servidos por FastAPI
 ## Requisitos previos
 
 - **Docker** 20.10+ (recomendado para correr todo)
-- **PostgreSQL 14+** con la extensión **pgvector** (en host, contenedor aparte
-  o servicio gestionado). Crea la base antes de arrancar la app:
+- **API key de OpenAI** (obligatoria para que arranque el agente)
+- **API key de Gemini** (obligatoria si vas a subir PDFs de exámenes)
+- **PostgreSQL 14+ con la extensión `pgvector`** — *opcional*, solo si vas
+  a ingestar PDFs o imágenes médicas. La app arranca y el chat funciona sin
+  base de datos. Si la usas, crea la base antes:
   ```sql
   CREATE DATABASE mibase;
   \c mibase
   CREATE EXTENSION IF NOT EXISTS vector;
   ```
-- **API key** de OpenAI o Google Gemini (al menos una)
 
 Para desarrollo local sin Docker:
 - Python 3.11+
@@ -102,17 +105,70 @@ cp .env.example .env
 Edita `.env` con tus valores:
 
 ```bash
-# LLM (al menos una)
+# LLM principal del agente (OBLIGATORIO — sin esto el agente no arranca)
 OPENAI_API_KEY=sk-...
+
+# Extracción de preguntas de PDF con Gemini Vision (obligatorio para subir
+# exámenes en PDF; el resto de la app funciona sin él)
 GEMINI_API_KEY=...
 
-# Postgres con pgvector
+# Postgres con pgvector (opcional — solo para ingestar PDFs e imágenes médicas)
 DB_HOST=localhost     # o el host de tu Postgres
 DB_PORT=5432
 DB_USER=postgres
 DB_PWD=tu_password
 DB_NAME=mibase
+
+# Búsqueda en Google (opcional — solo si quieres usar la tool buscar_en_google)
+GOOGLE_SEARCH_API_KEY=...
+GOOGLE_SEARCH_CX=...
 ```
+
+### Cómo obtener `OPENAI_API_KEY`
+
+La app usa OpenAI como LLM principal del agente (modelo configurable; por
+defecto `gpt-5-mini`). Sin esta key el agente **no se inicializa** —
+el backend arranca pero el chat no funciona.
+
+1. Entra a <https://platform.openai.com/signup> y crea una cuenta (o haz login).
+2. Ve a <https://platform.openai.com/api-keys> y haz clic en **Create new secret key**.
+3. Dale un nombre (p. ej. `cloudexam`) y copia la key (empieza con `sk-...`).
+   ⚠️ Solo se muestra una vez — guárdala en tu gestor de contraseñas.
+4. OpenAI requiere **saldo prepagado**: ve a
+   <https://platform.openai.com/account/billing> y carga al menos $5.
+
+### Cómo obtener `GEMINI_API_KEY`
+
+La app usa Gemini para extraer preguntas y opciones de los PDFs de exámenes
+(`textractor_robust.py` con `gemini-2.0-flash`). Sin esta key, el endpoint
+`/api/exams/extract-from-pdf` falla.
+
+1. Entra a <https://aistudio.google.com/apikey> con tu cuenta de Google.
+2. Haz clic en **Create API key** (selecciona o crea un proyecto de Google Cloud).
+3. Copia la key (empieza con `AIza...`).
+4. El uso de Gemini Flash tiene un **tier gratuito** generoso (15 req/min,
+   1M tokens/día) — suficiente para uso personal sin tarjeta de crédito.
+
+### Cómo obtener `GOOGLE_SEARCH_API_KEY` y `GOOGLE_SEARCH_CX`
+
+La tool `buscar_en_google` usa la **Google Custom Search JSON API**, que
+requiere DOS credenciales:
+
+1. **`GOOGLE_SEARCH_API_KEY`** — API key de Google Cloud:
+   - Entra a <https://console.cloud.google.com/> y selecciona/crea un proyecto.
+   - Activa **Custom Search API** en
+     <https://console.cloud.google.com/apis/library/customsearch.googleapis.com>.
+   - Ve a **APIs & Services → Credentials → Create credentials → API key**.
+   - Copia la key.
+
+2. **`GOOGLE_SEARCH_CX`** — ID del Programmable Search Engine:
+   - Entra a <https://programmablesearchengine.google.com/> y haz clic en **Add**.
+   - Dale un nombre y, en *Sites to search*, activa **"Search the entire web"**.
+   - Crea el engine. En el panel del CSE copia el **Search engine ID**
+     (también llamado `cx`).
+
+> El plan gratuito de Custom Search permite **100 búsquedas/día**. Si lo
+> excedes, las llamadas devolverán un error 429.
 
 Variables opcionales:
 
