@@ -15,6 +15,7 @@ export function Sidebar() {
         debugOpen,
         a2uiImagesEnabled,
         toggleA2UIImages,
+        setSidebarOpen,
     } = useAppStore();
 
     const [filesOpen, setFilesOpen] = useState(true);
@@ -24,12 +25,18 @@ export function Sidebar() {
     const [examResult, setExamResult] = useState<{ success: boolean; message: string } | null>(null);
     const examFileRef = useRef<HTMLInputElement>(null);
 
+    // Auto-close sidebar drawer on mobile after selecting something.
+    const closeOnMobile = useCallback(() => {
+        if (window.innerWidth < 768) setSidebarOpen(false);
+    }, [setSidebarOpen]);
+
     // Open a file in a tab.
     const handleSelectFile = useCallback((name: string) => {
         const key = `file:${name}`;
         openTab({ key, type: 'file', name });
         setSelectedKey(key);
-    }, [openTab, setSelectedKey]);
+        closeOnMobile();
+    }, [openTab, setSelectedKey, closeOnMobile]);
 
     // Attach a file's content to the chat context.
     const handleAttachFile = useCallback(async (name: string) => {

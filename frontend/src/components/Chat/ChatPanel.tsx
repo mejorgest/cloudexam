@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import { useAppStore } from '../../store/appStore';
-import { askAgentStream, readFile } from '../../services/api';
+import { askAgentStream, readFile, writeFile } from '../../services/api';
 import type { ExamQuestion } from '../../types';
 import { marked } from 'marked';
 import { Send, Plus, X, Paperclip } from 'lucide-react';
@@ -13,6 +13,7 @@ export function ChatPanel() {
         updateMessage,
         attachedFiles,
         snippetRefs,
+        addAttachedFile,
         removeAttachedFile,
         removeSnippetRef,
         clearSnippetRefs,
@@ -36,6 +37,32 @@ export function ChatPanel() {
     const [inputValue, setInputValue] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const attachInputRef = useRef<HTMLInputElement>(null);
+
+    // Upload a JSON file: save to workspace + attach to chat context.
+    const handleAttachFile = useCallback(async (file: File) => {
+        if (!file.name.toLowerCase().endsWith('.json')) {
+            alert('Solo se aceptan archivos .json de exámenes.');
+            return;
+        }
+        try {
+            const content = await file.text();
+            // Validate it parses
+            try {
+                JSON.parse(content);
+            } catch {
+                alert('El archivo no es JSON válido.');
+                return;
+            }
+            await writeFile(file.name, content);
+            addAttachedFile({ type: 'file', name: file.name, content });
+        } catch (e) {
+            console.error('Error subiendo archivo:', e);
+            alert(`Error subiendo el archivo: ${e instanceof Error ? e.message : e}`);
+        } finally {
+            if (attachInputRef.current) attachInputRef.current.value = '';
+        }
+    }, [addAttachedFile]);
 
     // Sync input value from store (for external triggers like ExamViewer)
     useEffect(() => {
@@ -498,12 +525,20 @@ export function ChatPanel() {
             {/* Input */}
             <div className="chat-input-container">
                 <div className="chat-input-row">
+                    <input
+                        ref={attachInputRef}
+                        type="file"
+                        accept="application/json,.json"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleAttachFile(f);
+                        }}
+                    />
                     <button
                         className="status-btn"
-                        onClick={() => {
-                            // Open file picker
-                            console.log('Open attach menu');
-                        }}
+                        onClick={() => attachInputRef.current?.click()}
+                        title="Subir un JSON de examen y adjuntarlo al chat"
                         style={{ padding: '10px' }}
                     >
                         <Plus size={18} />

@@ -1896,6 +1896,106 @@ button,
   }
 }
 
+/* ============== Mobile drawers (sidebar + chat) ============== */
+.mobile-backdrop {
+  display: none;
+}
+
+.drawer-fab {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Both panels become absolute drawers; editor takes the full width */
+  .app-container .sidebar,
+  .app-container .chat-panel {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 200;
+    width: min(85vw, 320px);
+    transition: transform 0.25s ease-out;
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.45);
+  }
+
+  .app-container .sidebar {
+    left: 0;
+    transform: translateX(-105%);
+  }
+
+  .app-container .chat-panel {
+    right: 0;
+    border-left: 1px solid var(--border-primary);
+    transform: translateX(105%);
+  }
+
+  .app-container.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .app-container.chat-open .chat-panel {
+    transform: translateX(0);
+  }
+
+  /* Backdrop dims the editor when any drawer is open */
+  .app-container.sidebar-open .mobile-backdrop,
+  .app-container.chat-open .mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 150;
+  }
+
+  /* Floating action buttons to toggle drawers */
+  .drawer-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 16px;
+    z-index: 250;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent-blue, #2563eb);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+  }
+
+  .drawer-fab:active {
+    transform: scale(0.95);
+  }
+
+  .drawer-fab-left {
+    left: 16px;
+  }
+
+  .drawer-fab-right {
+    right: 16px;
+  }
+
+  /* Push the existing settings FAB up so it doesn't collide */
+  .config-fab {
+    bottom: 70px !important;
+  }
+
+  /* Make exam cards readable on small screens */
+  .exam-card {
+    padding: 10px;
+    font-size: 14px;
+  }
+}
+
+/* On desktop, drawers are always rendered; just hide the toggle FABs. */
+@media (min-width: 769px) {
+  .drawer-fab {
+    display: none;
+  }
+}
+
 /* ============== Format Toolbar ============== */
 .format-toolbar {
   display: flex;

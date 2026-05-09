@@ -31,6 +31,8 @@ interface AppState {
     isLoading: boolean;
     debugOpen: boolean;
     a2uiImagesEnabled: boolean;
+    sidebarOpen: boolean;
+    chatOpen: boolean;
 
     // Chat
     messages: ChatMessage[];
@@ -61,6 +63,10 @@ interface AppState {
     setIsLoading: (loading: boolean) => void;
     toggleDebug: () => void;
     toggleA2UIImages: () => void;
+    toggleSidebar: () => void;
+    setSidebarOpen: (open: boolean) => void;
+    toggleChat: () => void;
+    setChatOpen: (open: boolean) => void;
 
     // Actions - Chat
     addMessage: (message: ChatMessage) => void;
@@ -95,6 +101,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     isLoading: false,
     debugOpen: false,
     a2uiImagesEnabled: localStorage.getItem('a2uiImagesEnabled') === 'true',
+    // On mobile, panels start hidden; on wider screens visible.
+    sidebarOpen: typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
+    chatOpen: typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
 
     messages: [{
         id: 'initial',
@@ -191,6 +200,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     setIsExamEditing: (isExamEditing) => set({ isExamEditing }),
     setIsLoading: (isLoading) => set({ isLoading }),
     toggleDebug: () => set((state) => ({ debugOpen: !state.debugOpen })),
+    toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+    setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+    toggleChat: () => set((state) => ({ chatOpen: !state.chatOpen })),
+    setChatOpen: (chatOpen) => set({ chatOpen }),
 
     addMessage: (message) => set((state) => ({
         messages: [...state.messages, message],
