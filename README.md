@@ -348,4 +348,4 @@ esté en `.dockerignore` (ya lo está) para que no se copie al contexto.
 
 ## Licencia
 
-Sin licencia declarada. Si planeas reutilizar el código, abre un issue.
+[MIT](LICENSE) © 2026 mejorgest
