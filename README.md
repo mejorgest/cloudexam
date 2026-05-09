@@ -1,6 +1,6 @@
 # cloudexam
 
-Web app para análisis de exámenes médicos asistido por agente. Permite subir
+Aplicación web app para análisis de exámenes médicos asistido por agente. Permite subir
 PDFs de exámenes, extraer las preguntas y opciones, y analizar cada pregunta
 con un agente ReAct (LangGraph) que razona sobre el contenido, busca en Google
 y consulta una base local de PDFs e imágenes médicas indexada en pgvector.
