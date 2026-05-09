@@ -9,16 +9,6 @@ export interface WorkspaceFile {
     size?: number;
 }
 
-export interface PdfDocument {
-    id: string;
-    filename: string;
-    original_name?: string;
-    status: 'pending' | 'indexed' | 'error';
-    pages?: number;
-    chunk_count?: number;
-    entity_status?: 'pending' | 'processing' | 'completed' | 'error' | 'disabled';
-}
-
 export interface ContextInfo {
     token_count: number;
     max_tokens: number;

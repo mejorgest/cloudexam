@@ -1,6 +1,5 @@
 import type {
     StateData,
-    PdfDocument,
     ContextInfo,
     ChangelogEntry,
     AskResponse,
@@ -72,42 +71,7 @@ export async function deleteFile(filename: string): Promise<void> {
     if (!response.ok) throw new Error('Failed to delete file');
 }
 
-// ============== PDF API ==============
-
-export async function fetchPdfDocuments(): Promise<{ success: boolean; documents: PdfDocument[] }> {
-    const response = await fetch(`${API_BASE}/api/pdf/documents`);
-    if (!response.ok) throw new Error('Failed to fetch PDF documents');
-    return response.json();
-}
-
-export async function deletePdfDocument(docId: string): Promise<{ success: boolean; chunks_deleted?: number; error?: string }> {
-    const response = await fetch(`${API_BASE}/api/pdf/documents/${docId}`, {
-        method: 'DELETE',
-    });
-    if (!response.ok) throw new Error('Failed to delete PDF document');
-    return response.json();
-}
-
-export async function uploadPdf(file: File): Promise<{
-    success: boolean;
-    pages?: number;
-    saved_to?: string;
-    doc_id?: string;
-    filename?: string;
-    workspace_file?: string;
-    state_key?: string;
-    error?: string;
-}> {
-    const formData = new FormData();
-    formData.append('pdf', file);
-
-    const response = await fetch(`${API_BASE}/api/upload/pdf`, {
-        method: 'POST',
-        body: formData,
-    });
-    if (!response.ok) throw new Error('Failed to upload PDF');
-    return response.json();
-}
+// ============== Exam extraction API ==============
 
 export async function extractExamFromPdf(file: File, outputName: string): Promise<{
     success: boolean;

@@ -1,19 +1,16 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '../store/appStore';
-import { fetchState, fetchFiles, fetchPdfDocuments, fetchContextInfo, fetchChangelog } from '../services/api';
+import { fetchState, fetchFiles, fetchContextInfo, fetchChangelog } from '../services/api';
 
 // Longer polling intervals for better performance
 const DATA_POLL_INTERVAL = 15000; // 15 seconds - rely on WebSocket for real-time
 const CONTEXT_POLL_INTERVAL = 30000; // 30 seconds
 const DEBUG_POLL_INTERVAL = 5000; // 5 seconds only when open
-const PDF_POLL_INTERVAL_IDLE = 30000; // 30 seconds
-const PDF_POLL_INTERVAL_PENDING = 5000; // 5 seconds when processing
 
 export function useDataPolling() {
     const {
         setState,
         setFiles,
-        setPdfDocuments,
         setContextInfo,
         setChangelog,
         isEditMode,
@@ -25,7 +22,6 @@ export function useDataPolling() {
 
     const previousStateRef = useRef<string>('');
     const previousFilesRef = useRef<string>('');
-    const pdfPollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const isMountedRef = useRef(true);
 
     // Use refs to always read the LATEST values in callbacks
@@ -88,31 +84,6 @@ export function useDataPolling() {
         }
     }, [setState, setFiles, addPendingChange]); // No isEditMode/isExamEditing - use refs instead
 
-    // PDF documents fetch - optimized
-    const loadPdfDocuments = useCallback(async () => {
-        if (!isMountedRef.current) return;
-
-        try {
-            const data = await fetchPdfDocuments();
-            if (data.success && data.documents) {
-                setPdfDocuments(data.documents);
-
-                // Clear previous interval
-                if (pdfPollingIntervalRef.current) {
-                    clearInterval(pdfPollingIntervalRef.current);
-                    pdfPollingIntervalRef.current = null;
-                }
-
-                // Adjust polling based on pending status
-                const hasPending = data.documents.some((d: { status: string }) => d.status === 'pending');
-                const interval = hasPending ? PDF_POLL_INTERVAL_PENDING : PDF_POLL_INTERVAL_IDLE;
-                pdfPollingIntervalRef.current = setInterval(loadPdfDocuments, interval);
-            }
-        } catch (error) {
-            console.error('Error loading PDF documents:', error);
-        }
-    }, [setPdfDocuments]);
-
     // Context info fetch
     const updateContextInfo = useCallback(async () => {
         if (!isMountedRef.current) return;
@@ -145,7 +116,6 @@ export function useDataPolling() {
 
         // Stagger initial loads to prevent API spike
         updateData();
-        setTimeout(loadPdfDocuments, 500);
         setTimeout(updateContextInfo, 1000);
 
         return () => {
@@ -173,14 +143,5 @@ export function useDataPolling() {
         }
     }, [debugOpen, updateChangelog]);
 
-    // Cleanup PDF polling
-    useEffect(() => {
-        return () => {
-            if (pdfPollingIntervalRef.current) {
-                clearInterval(pdfPollingIntervalRef.current);
-            }
-        };
-    }, []);
-
-    return { updateData, loadPdfDocuments, updateContextInfo };
+    return { updateData, updateContextInfo };
 }

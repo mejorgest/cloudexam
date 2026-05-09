@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import type {
     StateData,
     WorkspaceFile,
-    PdfDocument,
     Tab,
     AttachedFile,
     SnippetRef,
@@ -22,7 +21,6 @@ interface AppState {
     // Data
     state: StateData;
     files: WorkspaceFile[];
-    pdfDocuments: PdfDocument[];
     contextInfo: ContextInfo | null;
     changelog: ChangelogEntry[];
 
@@ -59,7 +57,6 @@ interface AppState {
     // Actions - Data
     setState: (state: StateData) => void;
     setFiles: (files: WorkspaceFile[]) => void;
-    setPdfDocuments: (docs: PdfDocument[]) => void;
     setContextInfo: (info: ContextInfo | null) => void;
     setChangelog: (entries: ChangelogEntry[]) => void;
 
@@ -104,7 +101,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Initial Data
     state: {},
     files: [],
-    pdfDocuments: [],
     contextInfo: null,
     changelog: [],
 
@@ -151,7 +147,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Data Actions
     setState: (state) => set({ state }),
     setFiles: (files) => set({ files }),
-    setPdfDocuments: (pdfDocuments) => set({ pdfDocuments }),
     setContextInfo: (contextInfo) => set({ contextInfo }),
     setChangelog: (changelog) => set({ changelog }),
 

@@ -8,14 +8,12 @@ y consulta una base local de PDFs e imágenes médicas indexada en pgvector.
 ## Características
 
 - **Ingesta de exámenes**: sube PDFs/HTML de exámenes y la app extrae preguntas
-  con opciones de respuesta (parser + LLM).
+  con opciones de respuesta usando Gemini Vision.
 - **Análisis por pregunta**: cada pregunta tiene botones para analizar con el
   agente o buscar evidencia en Google.
-- **Ingesta de PDFs en pgvector**: opcional. Procesa y trocea PDFs médicos,
-  guarda embeddings en Postgres + pgvector para alimentar futuras tools de
-  búsqueda semántica.
 - **Imágenes médicas**: galería A2UI con imágenes anotadas por keywords;
-  el agente puede enriquecer respuestas con imágenes relevantes.
+  el agente puede enriquecer respuestas con imágenes relevantes (requiere
+  Postgres + pgvector).
 - **State persistente**: el agente mantiene un workspace de archivos y un state
   por sesión; cambios se versionan con git checkpoints.
 - **Smart edit**: edición de documentos con instrucciones en lenguaje natural
@@ -50,14 +48,10 @@ servers/                         # módulos backend del agente
 ├── frontend_tools/              # operaciones de edición sobre state
 ├── smart_tools/                 # smart_edit / smart_enrich con LLM
 ├── advanced_tools/google_search.py
-├── pdf_processor.py             # ingesta de PDFs en pgvector
-├── pdf_registry.py              # tabla pdf_files
 ├── medical_images_service.py    # imágenes médicas con embeddings
 ├── medical_keywords_extractor.py
 ├── keyword_rag_service.py
-├── entity_*.py                  # extracción de entidades médicas
-├── rag_search.py
-├── db_pool.py
+├── db_pool.py                   # connection pool a Postgres
 └── versioning_service/          # checkpoints del workspace en git
 
 frontend/                        # SPA React (TypeScript + Vite)
@@ -298,9 +292,7 @@ El frontend de Vite corre en `http://localhost:5173` y proxy-ea `/api/*` y
 | `GET`  | `/api/workspace/files` | Listar archivos del workspace |
 | `POST` | `/api/workspace/files/read` | Leer contenido de un archivo |
 | `POST` | `/api/workspace/files/write` | Escribir contenido |
-| `POST` | `/api/upload/pdf` | Subir un PDF para indexarlo en pgvector |
-| `GET`  | `/api/pdf/documents` | Listar PDFs registrados |
-| `POST` | `/api/exams/extract-from-pdf` | Extraer preguntas de un PDF de examen |
+| `POST` | `/api/exams/extract-from-pdf` | Extraer preguntas de un PDF de examen (Gemini Vision) |
 | `POST` | `/api/medical-images/upload` | Subir imagen médica con keywords |
 | `GET`  | `/api/medical-images/search` | Buscar imágenes por keywords |
 | `POST` | `/api/medical-images/enrich` | Enriquecer respuesta con imágenes |

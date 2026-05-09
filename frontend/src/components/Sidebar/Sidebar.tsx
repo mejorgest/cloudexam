@@ -1,13 +1,12 @@
 import { useState, useCallback, useRef, memo } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { deleteState, deleteFile, readFile, extractExamFromPdf } from '../../services/api';
-import { ChevronDown, Plus, Upload, FolderOpen, FileText, Loader2 } from 'lucide-react';
+import { ChevronDown, Plus, FolderOpen, FileText, Loader2 } from 'lucide-react';
 
 export function Sidebar() {
     const {
         state,
         files,
-        pdfDocuments,
         selectedKey,
         openTab,
         setSelectedKey,
@@ -21,7 +20,6 @@ export function Sidebar() {
 
     const [stateOpen, setStateOpen] = useState(true);
     const [filesOpen, setFilesOpen] = useState(true);
-    const [pdfOpen, setPdfOpen] = useState(true);
 
     // Exam extraction state
     const [examExtracting, setExamExtracting] = useState(false);
@@ -221,46 +219,6 @@ export function Sidebar() {
                     </div>
                 </div>
 
-                {/* PDF Vectorstore Section */}
-                <div className="section">
-                    <div
-                        className={`section-header ${!pdfOpen ? 'collapsed' : ''}`}
-                        onClick={() => setPdfOpen(!pdfOpen)}
-                    >
-                        <ChevronDown size={12} className="chevron" />
-                        <span>📚 PDF VECTORSTORE</span>
-                        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)' }}>
-                            {pdfDocuments.length}
-                        </span>
-                    </div>
-                    <div className={`section-content ${!pdfOpen ? 'collapsed' : ''}`}>
-                        {pdfDocuments.length === 0 ? (
-                            <div className="tree-item" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                Sin documentos
-                            </div>
-                        ) : (
-                            pdfDocuments.map(pdf => (
-                                <PdfItem key={pdf.id} pdf={pdf} />
-                            ))
-                        )}
-
-                        {/* Upload PDF Button */}
-                        <label className="tree-item" style={{ cursor: 'pointer' }}>
-                            <Upload size={14} />
-                            <span>Subir PDF...</span>
-                            <input
-                                type="file"
-                                accept=".pdf"
-                                style={{ display: 'none' }}
-                                onChange={(e) => {
-                                    // Will handle in parent
-                                    console.log('PDF selected:', e.target.files?.[0]);
-                                }}
-                            />
-                        </label>
-                    </div>
-                </div>
-
                 {/* Exam Extraction Section */}
                 <div className="section">
                     <div className="section-header">
@@ -435,50 +393,3 @@ const TreeItem = memo(function TreeItem({ name, icon, selected, isAttached, onSe
     );
 });
 
-// ============== PDF Item Component ==============
-interface PdfItemProps {
-    pdf: {
-        id: string;
-        filename: string;
-        original_name?: string;
-        status: 'pending' | 'indexed' | 'error';
-        pages?: number;
-        chunk_count?: number;
-        entity_status?: string;
-    };
-}
-
-const PdfItem = memo(function PdfItem({ pdf }: PdfItemProps) {
-    const handleDelete = async () => {
-        const confirm = window.confirm(`¿Eliminar documento "${pdf.filename}"?`);
-        if (!confirm) return;
-
-        try {
-            await fetch(`/api/pdf/documents/${pdf.id}`, { method: 'DELETE' });
-        } catch (e) {
-            console.error('Error deleting PDF:', e);
-        }
-    };
-
-    const statusClass = pdf.status === 'indexed' ? 'indexed' : pdf.status === 'pending' ? 'pending' : 'error';
-    const statusIcon = pdf.status === 'indexed' ? '✓' : pdf.status === 'pending' ? '⏳' : '❌';
-
-    return (
-        <div className="pdf-item">
-            <span className="pdf-item-icon">📄</span>
-            <div className="pdf-item-info">
-                <div className="pdf-item-name" title={pdf.filename}>
-                    {pdf.original_name || pdf.filename}
-                </div>
-                <div className={`pdf-item-status ${statusClass}`}>
-                    {statusIcon} {pdf.status}
-                    {pdf.chunk_count ? ` • ${pdf.chunk_count} chunks` : ''}
-                    {pdf.pages ? ` • ${pdf.pages} pág` : ''}
-                </div>
-            </div>
-            <button className="pdf-item-delete" onClick={handleDelete} title="Eliminar">
-                🗑️
-            </button>
-        </div>
-    );
-});
