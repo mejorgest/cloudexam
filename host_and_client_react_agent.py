@@ -76,88 +76,63 @@ class SaveStatePayload(BaseModel):
 
 # ============== SYSTEM PROMPT ==============
 
-SYSTEM_PROMPT = """Eres un asistente inteligente con capacidades de persistencia de estado y acceso a herramientas especializadas.
+SYSTEM_PROMPT = """Eres un asistente para análisis de exámenes médicos. Tu rol es razonar
+sobre preguntas de exámenes (microbiología, hematología, parasitología, etc.),
+justificar respuestas correctas e incorrectas con evidencia, y ayudar al usuario
+a editar y enriquecer sus documentos de estudio.
 
-## 📁 ARQUITECTURA DE DOCUMENTOS (MUY IMPORTANTE):
+## 📁 ARQUITECTURA DE DOCUMENTOS
 
-### 🗄️ Agent State (Documentos DINÁMICOS):
-- Son documentos que puedes CREAR, EDITAR y MODIFICAR
-- Se guardan con: save_state("nombre", contenido)
-- Se editan con: smart_edit_state("nombre", "instrucción")
-- Sirven como CONTEXTO y como documentos de trabajo
-- Se exportan a archivos permanentes con: export_state_to_file("nombre")
-- Ejemplos: protocolo_yuca, cotizacion_juan, propuesta_cliente
+### 🗄️ Agent State (documentos DINÁMICOS):
+- Documentos en memoria que puedes CREAR, EDITAR y MODIFICAR.
+- Crear/guardar:  save_state("nombre", contenido)
+- Editar:         smart_edit_state("nombre", "instrucción")
+- Exportar:       export_state_to_file("nombre")  ← solo si el usuario lo pide
+- Ejemplos: justificacion_pregunta_3, notas_microbiologia, resumen_examen_X
 
-### 📂 Workspace Files (Documentos ESTÁTICOS):
-- Son archivos permanentes de SOLO LECTURA
-- Se leen con: read_file("archivo.txt") para obtener contexto
-- NUNCA se modifican directamente
-- Solo se actualizan cuando exportas un state con export_state_to_file()
-- Ejemplos: plantilla_contrato.md, precios.json, términos.txt
+### 📂 Workspace Files (documentos ESTÁTICOS):
+- Archivos permanentes en disco, SOLO LECTURA.
+- Leer:           read_file("archivo.txt")
+- NUNCA edites archivos directamente; trabaja siempre sobre un state y exporta
+  cuando esté listo.
 
-### 🔄 Flujo de trabajo correcto:
-1. Leer archivo del workspace para contexto → read_file()
-2. Crear/modificar un STATE con la información → save_state(), smart_edit_state()
-3. Cuando esté listo, exportar a archivo → export_state_to_file()
+### 🔄 Flujo de trabajo
+1. Leer archivos relevantes con read_file() para obtener contexto.
+2. Trabajar sobre un STATE con save_state() / smart_edit_state().
+3. Solo cuando el usuario diga "guarda" / "exporta", llamar export_state_to_file().
 
-## Tus Capacidades:
+## 🛠️ TUS HERRAMIENTAS
 
-### 🌱 Protocolos Agrícolas (Environoc 401/501):
-- Consulta sobre aplicación de productos en cultivos
+### Edición de documentos
+- smart_edit_state(key, instruction)        → editar un state con LLM
+- smart_edit_file(filename, instruction)    → editar un archivo (carga a state)
+- smart_enrich_document(key, instruction)   → enriquecer un state con otra tool
+- smart_resume(text, state_key, lines, ...) → resumir y reemplazar/insertar
+- add_text(key, text, position)             → añadir texto en posición
+- delete_lines(key, start, end)             → borrar líneas (operación exacta)
+- relocate_text(key, start, end, target)    → mover bloque de texto
+- correct_text_in_state(key, old, new)      → reemplazo simple
 
-### 💧 Protocolos de Tratamiento de Aguas (Environoc 301):
-- Tanques sépticos, biodigestores, lagunas
+### Estado y archivos
+- save_state / load_state / get_full_state / search_state / create_new_state
+- read_file / write_file / list_files
+- export_state_to_file(state_key, filename, format)  ← solo bajo petición
 
-### 💰 Cotizaciones:
-- Genera cotizaciones para clientes
+### Búsqueda externa
+- buscar_en_google(query, state_key, num_results)
+  Úsalo SOLO cuando el usuario pida explícitamente "busca en internet / Google / web".
+  Si hay un documento adjunto, pasa state_key='nombre' para agregar resultados ahí.
 
-### 🚪 Control de Portón:
-- Abrir, cerrar o detener el portón eléctrico
+## 🔴 REGLAS
 
-### 📧 Email:
-- Envía estados por correo electrónico
-
-### ✏️ Edición Inteligente:
-- smart_edit_state(key, instruction): Edita un estado con instrucciones naturales
-- smart_enrich_document(key, instruction): Agrega información de otras herramientas a un estado
-
-### 📤 Exportar:
-- export_state_to_file(state_key): Guarda un estado como archivo permanente en el workspace
-
-### 🔍 Búsqueda en Google (SOLO para internet):
-- buscar_en_google(query, state_key): SOLO cuando el usuario diga "busca en internet", "busca en la web", "busca en Google"
-- ⚠️ Si hay un documento ADJUNTO/SELECCIONADO, DEBES pasar state_key='nombre_del_documento' para agregar el resultado ahí
-- Solo genera un nuevo estado si NO hay documento seleccionado
-
-### 📚 Búsqueda RAG (Base de Conocimientos LOCAL - por defecto):
-- buscar_documentos(query, target_file): Para búsquedas generales como "busca información sobre X"
-- Esta es la herramienta por defecto para buscar - NO usa internet
-- ⚠️ Si hay un documento ADJUNTO/SELECCIONADO, DEBES pasar target_file='nombre_del_documento' para agregar el resultado ahí
-- Solo genera un nuevo archivo si NO hay documento seleccionado
-
-
-## 🔴 REGLAS OBLIGATORIAS:
-
-1. **DESPUÉS de consultar protocolos**, SIEMPRE guarda el resultado con save_state()
-2. Para **editar documentos**, usa smart_edit_state (NO edites archivos directamente)
-3. **NUNCA uses export_state_to_file() automáticamente** - solo cuando el usuario diga explícitamente: "guarda", "exporta", "guarda como archivo", etc.
-4. Sé conciso y directo en tus respuestas
-
-## Flujos de Trabajo:
-
-### Protocolos:
-consultar_protocolo → save_state("protocolo_tema", resultado)
-
-### Cotizaciones:
-- **Solo generar**: generar_cotizacion("descripcion") → retorna la cotización
-- **Agregar a documento existente**: smart_enrich_document("clave_estado", "agregar cotización para X")
-  ⚠️ NO uses generar_cotizacion + smart_edit_state, usa smart_enrich_document
-
-### Ediciones:
-smart_edit_state("nombre", "qué cambiar")
-
-### Guardar como archivo:
-export_state_to_file("nombre") → Crea archivo en workspace
+1. NO uses export_state_to_file() automáticamente — solo cuando el usuario lo pida
+   explícitamente ("guarda", "exporta", "guarda como archivo").
+2. Para editar contenido usa smart_edit_state, no escribas archivos directamente.
+3. Cuando justifiques una respuesta de examen, indica brevemente:
+   - cuál es la opción correcta y por qué,
+   - por qué las otras opciones son incorrectas,
+   - cita la fuente si la obtuviste de buscar_en_google.
+4. Sé conciso y directo. No repitas información ya presente en el documento.
 """
 
 # ============== LIFESPAN ==============
@@ -1633,7 +1608,6 @@ async def ask_question(payload: AskPayload):
             
             context_parts = []
             edit_instructions = []
-            email_instructions = []
             state_keys = []  # Track state keys for smart editing
             line_ranges = {}  # Track line ranges for snippets {key: (start, end)}
             
@@ -1747,7 +1721,6 @@ async def ask_question(payload: AskPayload):
                             edit_instructions.append(f"  • EDICIÓN INTELIGENTE: smart_edit_state('{key}', 'instrucción de qué cambiar')")
                             edit_instructions.append(f"  • RESUMIR: smart_resume(text='texto a resumir', state_key='{key}')")
                         edit_instructions.append(f"  • EDICIÓN EXACTA: correct_text_in_state('{key}', 'texto_viejo', 'texto_nuevo')")
-                        email_instructions.append(f"  • ENVIAR POR EMAIL: enviar_email(destinatario='correo@ejemplo.com', state_key='{key}')")
                     else:
                         edit_instructions.append(f"  • EDICIÓN INTELIGENTE: smart_edit_file('{key}', 'instrucción de qué cambiar')")
                         edit_instructions.append(f"  • EDICIÓN EXACTA: edit_document('{key}', 'texto_viejo', 'texto_nuevo')")
@@ -1775,9 +1748,6 @@ async def ask_question(payload: AskPayload):
 
 📝 HERRAMIENTAS PARA EDITAR:
 {chr(10).join(edit_instructions) if edit_instructions else "  (ninguna acción disponible)"}
-
-📧 HERRAMIENTAS PARA EMAIL:
-{chr(10).join(email_instructions) if email_instructions else "  (ninguna acción disponible)"}
 
 ⛔ REGLAS IMPORTANTES:
 - SI hay un fragmento seleccionado (líneas específicas), USA start_line y end_line para editar SOLO ese fragmento
@@ -3011,7 +2981,6 @@ STATE_VIEWER_HTML = """
             <div class="quick-actions">
                 <button class="quick-btn" onclick="sendQuick('muéstrame el estado')">📋 Estado</button>
                 <button class="quick-btn" onclick="sendQuick('lista archivos')">📂 Archivos</button>
-                <button class="quick-btn" onclick="sendQuick('protocolo yuca')">🌱 Protocolo</button>
             </div>
             <div class="attached-files" id="attachedFiles"></div>
             <div class="snippet-container" id="snippetContainer" style="display:none;"></div>
