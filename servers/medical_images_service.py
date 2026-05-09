@@ -28,11 +28,15 @@ from servers.db_pool import get_cursor, get_connection
 
 logger = logging.getLogger(__name__)
 
-# Directory for storing uploaded images
-# Detect if running in Docker or locally
+# Directory for storing uploaded images.
+# - Honors MEDICAL_IMAGES_DIR env var if set.
+# - In Docker: /app/workspace/medical_images.
+# - Otherwise: <repo_root>/workspace/medical_images, where repo_root is the
+#   parent of the `servers/` package.
 _IS_DOCKER = os.environ.get("DOCKER_ENV", "false").lower() == "true"
-_DEFAULT_PATH = "/app/workspace/medical_images" if _IS_DOCKER else "/home/mejorgest/tsagentexam/workspace/medical_images"
-IMAGES_DIR = Path(os.environ.get("MEDICAL_IMAGES_DIR", _DEFAULT_PATH))
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_DEFAULT_PATH = Path("/app/workspace/medical_images") if _IS_DOCKER else _REPO_ROOT / "workspace" / "medical_images"
+IMAGES_DIR = Path(os.environ.get("MEDICAL_IMAGES_DIR", str(_DEFAULT_PATH)))
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
