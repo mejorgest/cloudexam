@@ -5,7 +5,7 @@ import type { WSMessage } from '../types';
 export function useWebSocket() {
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const { setState, setFiles } = useAppStore();
+    const { setFiles } = useAppStore();
 
     const connect = useCallback(() => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -23,24 +23,13 @@ export function useWebSocket() {
                 try {
                     const data: WSMessage = JSON.parse(event.data);
 
-                    // Skip state updates during any kind of editing to prevent overwriting user changes
                     const store = useAppStore.getState();
                     const isUserEditing = store.isEditMode || store.currentAnalyzingIndex !== null || store.isExamEditing;
-
-                    if (data.type === 'state_update' && data.state) {
-                        if (!isUserEditing) {
-                            setState(data.state);
-                        }
-                    }
 
                     if (data.type === 'file_update' && data.files) {
                         if (!isUserEditing) {
                             setFiles(data.files.map(f => ({ name: f })));
                         }
-                    }
-
-                    if (data.type === 'pong') {
-                        // Heartbeat response
                     }
                 } catch (e) {
                     console.warn('Failed to parse WebSocket message:', e);
@@ -68,7 +57,7 @@ export function useWebSocket() {
                 connect();
             }, 5000);
         }
-    }, [setState, setFiles]); // WS handler reads editing state via getState() - no deps needed
+    }, [setFiles]);
 
     // Heartbeat ping
     useEffect(() => {

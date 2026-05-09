@@ -11,13 +11,13 @@ y consulta una base local de PDFs e imágenes médicas indexada en pgvector.
   con opciones de respuesta usando Gemini Vision.
 - **Análisis por pregunta**: cada pregunta tiene botones para analizar con el
   agente o buscar evidencia en Google.
+- **Workspace de archivos**: el agente trabaja sobre archivos guardados en
+  `workspace/`; los cambios se versionan automáticamente con git checkpoints.
+- **Smart edit por archivo**: edita un archivo con una instrucción en
+  lenguaje natural (`smart_edit_file`).
 - **Imágenes médicas**: galería A2UI con imágenes anotadas por keywords;
   el agente puede enriquecer respuestas con imágenes relevantes (requiere
   Postgres + pgvector).
-- **State persistente**: el agente mantiene un workspace de archivos y un state
-  por sesión; cambios se versionan con git checkpoints.
-- **Smart edit**: edición de documentos con instrucciones en lenguaje natural
-  (smart_edit, smart_resume, add_text, delete_lines, relocate_text).
 - **Skills dinámicas**: módulos en `skills/` cargados en runtime
   (template incluido en `skills/TEMPLATE_SKILL.md`).
 
@@ -43,10 +43,9 @@ requirements1.txt                # dependencias Python
 .env.example                     # plantilla de variables de entorno
 
 servers/                         # módulos backend del agente
-├── react_tools/tools_loader.py  # registro de tools de LangGraph (19 tools)
-├── filesystem_service/          # operaciones sobre el state del agente
-├── frontend_tools/              # operaciones de edición sobre state
-├── smart_tools/                 # smart_edit / smart_enrich con LLM
+├── react_tools/tools_loader.py  # registro de tools de LangGraph (5 tools)
+├── filesystem_service/          # read/write/list de archivos del workspace
+├── smart_tools/smart_edit.py    # edición de archivos con LLM
 ├── advanced_tools/google_search.py
 ├── medical_images_service.py    # imágenes médicas con embeddings
 ├── medical_keywords_extractor.py
@@ -58,12 +57,12 @@ frontend/                        # SPA React (TypeScript + Vite)
 ├── src/components/
 │   ├── ExamViewer/              # render de preguntas + botones de análisis
 │   ├── Chat/                    # panel de chat con el agente (SSE/WS)
-│   ├── Editor/                  # editor del state activo
-│   ├── Sidebar/                 # navegación de archivos/states
+│   ├── Editor/                  # editor del archivo activo
+│   ├── Sidebar/                 # navegación de archivos
 │   ├── ConfigScreen/            # configuración runtime (API keys, DB)
 │   ├── ImageUpload/             # subida y registro de imágenes médicas
 │   ├── A2UIImageGallery/        # galería para enriquecer respuestas
-│   ├── DiffModal/, Debug/
+│   └── Debug/
 └── src/services/api.ts          # cliente HTTP/SSE/WS
 
 skills/                          # skills cargadas dinámicamente
@@ -287,11 +286,10 @@ El frontend de Vite corre en `http://localhost:5173` y proxy-ea `/api/*` y
 
 | Método | Path | Uso |
 |---|---|---|
-| `GET`  | `/api/workspace/state` | Estado completo del agente (también es el healthcheck) |
-| `POST` | `/api/workspace/state` | Guardar/actualizar un valor en el state |
-| `GET`  | `/api/workspace/files` | Listar archivos del workspace |
+| `GET`  | `/api/workspace/files` | Listar archivos del workspace (también es el healthcheck) |
 | `POST` | `/api/workspace/files/read` | Leer contenido de un archivo |
 | `POST` | `/api/workspace/files/write` | Escribir contenido |
+| `POST` | `/api/workspace/files/delete` | Borrar un archivo |
 | `POST` | `/api/exams/extract-from-pdf` | Extraer preguntas de un PDF de examen (Gemini Vision) |
 | `POST` | `/api/medical-images/upload` | Subir imagen médica con keywords |
 | `GET`  | `/api/medical-images/search` | Buscar imágenes por keywords |
@@ -299,25 +297,25 @@ El frontend de Vite corre en `http://localhost:5173` y proxy-ea `/api/*` y
 | `GET`  | `/api/checkpoints` | Listar checkpoints (git tags) del workspace |
 | `POST` | `/api/checkpoints/create` | Crear checkpoint manual |
 | `POST` | `/api/checkpoints/restore` | Restaurar a un checkpoint |
-| `WS`   | `/ws` | Canal del chat con el agente |
+| `POST` | `/api/ask` / `/api/ask/stream` | Enviar una pregunta al agente |
+| `WS`   | `/ws` | Notificaciones de cambios en archivos |
 | `GET`  | `/api/tools` | Lista de tools registradas para el agente |
 
 ## Tools disponibles para el agente
 
-19 tools registradas en `servers/react_tools/tools_loader.py`:
+5 tools registradas en `servers/react_tools/tools_loader.py`:
 
-- **Filesystem**: `read_file`, `write_file`, `list_files`
-- **State**: `save_state`, `load_state`, `get_full_state`, `create_new_state`,
-  `correct_text_in_state`, `search_state`, `edit_document`
-- **Smart edit**: `smart_edit_state`, `smart_edit_file`, `smart_enrich_document`,
-  `smart_resume`, `add_text`, `delete_lines`, `relocate_text`
-- **Export**: `export_state_to_file`
-- **Web**: `buscar_en_google`
+- `read_file(filename)` — leer un archivo del workspace.
+- `write_file(filename, content)` — crear o sobrescribir un archivo.
+- `list_files(directory=".")` — listar archivos del workspace.
+- `smart_edit_file(filename, instruction)` — editar un archivo con LLM.
+- `buscar_en_google(query, target_file=None)` — buscar en internet; si se
+  pasa `target_file`, anexa los resultados a ese archivo.
 
 ## Healthcheck
 
 ```
-GET /api/workspace/state    →    200 OK
+GET /api/workspace/files    →    200 OK
 ```
 
 El `Dockerfile` lo usa cada 30s (ver línea `HEALTHCHECK`).
@@ -340,7 +338,7 @@ pantalla "Configuración" de la UI (se persisten en `data/secrets.json`).
 
 **El frontend muestra "Failed to fetch"**
 El backend no está corriendo o el puerto no coincide. Verifica que
-`http://localhost:8000/api/workspace/state` devuelva 200.
+`http://localhost:8000/api/workspace/files` devuelva 200.
 
 **Build de Docker lento**
 El `npm ci` del frontend es lo más pesado. Asegúrate de que `frontend/node_modules`

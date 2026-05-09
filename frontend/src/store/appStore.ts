@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import type {
-    StateData,
     WorkspaceFile,
     Tab,
     AttachedFile,
@@ -19,7 +18,6 @@ interface PendingExamAnalysis {
 
 interface AppState {
     // Data
-    state: StateData;
     files: WorkspaceFile[];
     contextInfo: ContextInfo | null;
     changelog: ChangelogEntry[];
@@ -44,18 +42,10 @@ interface AppState {
     useStreaming: boolean;
     chatInputValue: string;
     shouldTriggerSend: boolean;
-    streamingJustification: string; // Real-time justification content during analysis
-    lastAnalyzedIndex: number | null; // Remember which question was last analyzed
-
-    // Diff
-    statesWithPendingChanges: Set<string>;
-    pendingChanges: {
-        stateKey: string | null;
-        hasChanges: boolean;
-    };
+    streamingJustification: string;
+    lastAnalyzedIndex: number | null;
 
     // Actions - Data
-    setState: (state: StateData) => void;
     setFiles: (files: WorkspaceFile[]) => void;
     setContextInfo: (info: ContextInfo | null) => void;
     setChangelog: (entries: ChangelogEntry[]) => void;
@@ -90,21 +80,13 @@ interface AppState {
     resetTriggerSend: () => void;
     setStreamingJustification: (content: string) => void;
     setLastAnalyzedIndex: (index: number | null) => void;
-
-    // Actions - Diff
-    addPendingChange: (stateKey: string) => void;
-    removePendingChange: (stateKey: string) => void;
-    setPendingChanges: (changes: { stateKey: string | null; hasChanges: boolean }) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-    // Initial Data
-    state: {},
     files: [],
     contextInfo: null,
     changelog: [],
 
-    // Initial UI State
     selectedKey: null,
     openTabs: [],
     tabScrollPositions: {},
@@ -114,11 +96,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     debugOpen: false,
     a2uiImagesEnabled: localStorage.getItem('a2uiImagesEnabled') === 'true',
 
-    // Initial Chat State
     messages: [{
         id: 'initial',
         type: 'system',
-        content: 'React Agent con LangGraph\nHaz clic en ➕ para adjuntar archivos como contexto',
+        content: 'Asistente de exámenes médicos. Adjunta un archivo con ➕ y pregúntame sobre él.',
         timestamp: new Date(),
     }],
     attachedFiles: [],
@@ -137,20 +118,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     streamingJustification: '',
     lastAnalyzedIndex: null,
 
-    // Initial Diff State
-    statesWithPendingChanges: new Set(),
-    pendingChanges: {
-        stateKey: null,
-        hasChanges: false,
-    },
-
-    // Data Actions
-    setState: (state) => set({ state }),
     setFiles: (files) => set({ files }),
     setContextInfo: (contextInfo) => set({ contextInfo }),
     setChangelog: (changelog) => set({ changelog }),
 
-    // UI Actions
     setSelectedKey: (selectedKey) => set({ selectedKey }),
     toggleA2UIImages: () => {
         const newVal = !get().a2uiImagesEnabled;
@@ -170,7 +141,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         const newTabs = openTabs.filter(t => t.key !== key);
         set({ openTabs: newTabs });
 
-        // If closing active tab, switch to another
         if (selectedKey === key && newTabs.length > 0) {
             const index = openTabs.findIndex(t => t.key === key);
             const newIndex = Math.max(0, index - 1);
@@ -183,7 +153,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     switchToTab: (key) => {
         const { selectedKey, tabScrollPositions } = get();
 
-        // Save current scroll position before switching
         if (selectedKey) {
             const examContainer = document.querySelector('.exam-container');
             const contentDiv = document.getElementById('editorContent');
@@ -223,7 +192,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     setIsLoading: (isLoading) => set({ isLoading }),
     toggleDebug: () => set((state) => ({ debugOpen: !state.debugOpen })),
 
-    // Chat Actions
     addMessage: (message) => set((state) => ({
         messages: [...state.messages, message],
     })),
@@ -238,13 +206,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         messages: [{
             id: 'initial',
             type: 'system',
-            content: 'React Agent con LangGraph\nHaz clic en ➕ para adjuntar archivos como contexto',
+            content: 'Asistente de exámenes médicos. Adjunta un archivo con ➕ y pregúntame sobre él.',
             timestamp: new Date(),
         }],
     }),
 
     addAttachedFile: (file) => set((state) => {
-        // Check if already attached
         const exists = state.attachedFiles.some(
             f => f.type === file.type && f.name === file.name
         );
@@ -280,19 +247,4 @@ export const useAppStore = create<AppState>((set, get) => ({
     setStreamingJustification: (streamingJustification) => set({ streamingJustification }),
     setLastAnalyzedIndex: (lastAnalyzedIndex) => set({ lastAnalyzedIndex }),
     setPendingExamAnalysis: (pendingExamAnalysis) => set({ pendingExamAnalysis }),
-
-    // Diff Actions
-    addPendingChange: (stateKey) => set((state) => {
-        const newSet = new Set(state.statesWithPendingChanges);
-        newSet.add(stateKey);
-        return { statesWithPendingChanges: newSet };
-    }),
-
-    removePendingChange: (stateKey) => set((state) => {
-        const newSet = new Set(state.statesWithPendingChanges);
-        newSet.delete(stateKey);
-        return { statesWithPendingChanges: newSet };
-    }),
-
-    setPendingChanges: (pendingChanges) => set({ pendingChanges }),
 }));

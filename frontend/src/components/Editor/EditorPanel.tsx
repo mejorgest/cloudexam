@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '../../store/appStore';
-import { readFile, saveState, writeFile } from '../../services/api';
+import { readFile, writeFile } from '../../services/api';
 import { ExamViewer } from '../ExamViewer';
 import { ImageUpload } from '../ImageUpload';
 import { X, Edit, Save, CornerUpLeft } from 'lucide-react';
@@ -8,7 +8,6 @@ import type { ExamQuestion } from '../../types';
 
 export function EditorPanel() {
     const {
-        state,
         selectedKey,
         openTabs,
         closeTab,
@@ -97,14 +96,12 @@ export function EditorPanel() {
         const loadContent = async () => {
             setLoading(true);
             try {
-                let rawContent: string;
+                let rawContent = '';
 
                 if (selectedKey.startsWith('file:')) {
                     const filename = selectedKey.replace('file:', '');
                     const data = await readFile(filename);
                     rawContent = data.content || '';
-                } else {
-                    rawContent = String(state[selectedKey] || '');
                 }
 
                 setContent(rawContent);
@@ -203,15 +200,11 @@ export function EditorPanel() {
 
     // Save content
     const handleSave = useCallback(async () => {
-        if (!selectedKey) return;
+        if (!selectedKey || !selectedKey.startsWith('file:')) return;
 
         try {
-            if (selectedKey.startsWith('file:')) {
-                const filename = selectedKey.replace('file:', '');
-                await writeFile(filename, editContent);
-            } else {
-                await saveState(selectedKey, editContent);
-            }
+            const filename = selectedKey.replace('file:', '');
+            await writeFile(filename, editContent);
 
             setContent(editContent);
             setIsEditMode(false);
@@ -357,33 +350,16 @@ interface StatusBarProps {
 }
 
 function StatusBar({ isEditMode, onToggleEdit, onSave, selectedKey }: StatusBarProps) {
-    const { statesWithPendingChanges } = useAppStore();
-
-    // Check if current key has pending changes
-    const hasPendingDiff = selectedKey && statesWithPendingChanges.has(selectedKey);
-
     return (
         <div className="status-bar">
             <div className="status-left">
                 {selectedKey && (
                     <span className="status-item">
-                        {selectedKey.startsWith('file:') ? '📁' : '📄'} {selectedKey.replace('file:', '')}
+                        📁 {selectedKey.replace('file:', '')}
                     </span>
                 )}
             </div>
             <div className="status-right">
-                {hasPendingDiff && (
-                    <button
-                        className="status-btn pending-diff-btn"
-                        onClick={() => {
-                            // Open diff modal
-                            console.log('Open diff for', selectedKey);
-                        }}
-                    >
-                        ⇆ Ver cambios
-                    </button>
-                )}
-
                 {selectedKey && onToggleEdit && (
                     <>
                         {isEditMode ? (

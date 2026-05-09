@@ -1,1 +1,0 @@
-export { DiffModal } from './DiffModal';

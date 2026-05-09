@@ -1,9 +1,5 @@
 // ============== API Types ==============
 
-export interface StateData {
-    [key: string]: string | number | boolean | object | unknown[];
-}
-
 export interface WorkspaceFile {
     name: string;
     size?: number;
@@ -58,14 +54,14 @@ export interface ChatMessage {
 }
 
 export interface AttachedFile {
-    type: 'state' | 'file';
+    type: 'file';
     name: string;
     content: string;
 }
 
 export interface SnippetRef {
     source: string;
-    type?: 'state' | 'file' | 'exam_question';
+    type?: 'file' | 'exam_question';
     name: string;
     startLine: number;
     endLine: number;
@@ -79,31 +75,14 @@ export interface SnippetRef {
 
 export interface Tab {
     key: string;
-    type: 'state' | 'file';
+    type: 'file' | 'images';
     name: string;
-}
-
-// ============== Diff Types ==============
-
-export interface DiffLine {
-    type: 'same' | 'add' | 'remove' | 'change';
-    old?: string;
-    new?: string;
-}
-
-export interface DiffData {
-    success: boolean;
-    has_changes: boolean;
-    diff: DiffLine[];
-    previous_hash?: string;
-    error?: string;
 }
 
 // ============== WebSocket Types ==============
 
 export interface WSMessage {
-    type: 'state_update' | 'file_update' | 'notification' | 'pong';
-    state?: StateData;
+    type: 'file_update' | 'notification' | 'pong';
     files?: string[];
     message?: string;
 }

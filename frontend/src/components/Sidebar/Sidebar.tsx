@@ -1,11 +1,10 @@
 import { useState, useCallback, useRef, memo } from 'react';
 import { useAppStore } from '../../store/appStore';
-import { deleteState, deleteFile, readFile, extractExamFromPdf } from '../../services/api';
+import { deleteFile, readFile, extractExamFromPdf } from '../../services/api';
 import { ChevronDown, Plus, FolderOpen, FileText, Loader2 } from 'lucide-react';
 
 export function Sidebar() {
     const {
-        state,
         files,
         selectedKey,
         openTab,
@@ -18,7 +17,6 @@ export function Sidebar() {
         toggleA2UIImages,
     } = useAppStore();
 
-    const [stateOpen, setStateOpen] = useState(true);
     const [filesOpen, setFilesOpen] = useState(true);
 
     // Exam extraction state
@@ -26,77 +24,48 @@ export function Sidebar() {
     const [examResult, setExamResult] = useState<{ success: boolean; message: string } | null>(null);
     const examFileRef = useRef<HTMLInputElement>(null);
 
-    // Filter out internal state keys
-    const stateKeys = Object.keys(state).filter(k => !k.startsWith('_'));
-
-    // Handle item selection
-    const handleSelectItem = useCallback(async (type: 'state' | 'file', name: string) => {
-        const key = type === 'file' ? `file:${name}` : name;
-
-        // Open tab
-        openTab({ key, type, name });
+    // Open a file in a tab.
+    const handleSelectFile = useCallback((name: string) => {
+        const key = `file:${name}`;
+        openTab({ key, type: 'file', name });
         setSelectedKey(key);
     }, [openTab, setSelectedKey]);
 
-    // Handle attach to context
-    const handleAttach = useCallback(async (type: 'state' | 'file', name: string) => {
+    // Attach a file's content to the chat context.
+    const handleAttachFile = useCallback(async (name: string) => {
         let content = '';
-
-        if (type === 'state') {
-            content = String(state[name] || '');
-        } else {
-            try {
-                const data = await readFile(name);
-                content = data.content || '';
-            } catch (e) {
-                console.error('Error reading file for attach:', e);
-                return;
-            }
+        try {
+            const data = await readFile(name);
+            content = data.content || '';
+        } catch (e) {
+            console.error('Error reading file for attach:', e);
+            return;
         }
 
         const isAlreadyAttached = attachedFiles.some(
-            f => f.type === type && f.name === name
+            f => f.type === 'file' && f.name === name
         );
-
         if (!isAlreadyAttached) {
-            addAttachedFile({ type, name, content });
+            addAttachedFile({ type: 'file', name, content });
         }
-    }, [state, attachedFiles, addAttachedFile]);
+    }, [attachedFiles, addAttachedFile]);
 
-    // Handle delete
-    const handleDelete = useCallback(async (type: 'state' | 'file', name: string, e: React.MouseEvent) => {
+    const handleDeleteFile = useCallback(async (name: string, e: React.MouseEvent) => {
         e.stopPropagation();
-
-        const confirm = window.confirm(`¿Eliminar ${type === 'state' ? 'estado' : 'archivo'} "${name}"?`);
-        if (!confirm) return;
-
+        const ok = window.confirm(`¿Eliminar archivo "${name}"?`);
+        if (!ok) return;
         try {
-            if (type === 'state') {
-                await deleteState(name);
-            } else {
-                await deleteFile(name);
-            }
+            await deleteFile(name);
         } catch (error) {
             console.error('Delete error:', error);
         }
     }, []);
 
-    // Create new state
-    const handleCreateState = useCallback(() => {
-        const name = prompt('Nombre del nuevo estado:');
-        if (!name) return;
-
-        // Will be created on first edit
-        handleSelectItem('state', name);
-    }, [handleSelectItem]);
-
-    // Create new file
     const handleCreateFile = useCallback(() => {
         const name = prompt('Nombre del nuevo archivo (ej: notes.txt):');
         if (!name) return;
-
-        handleSelectItem('file', name);
-    }, [handleSelectItem]);
+        handleSelectFile(name);
+    }, [handleSelectFile]);
 
     // Extract exam from PDF
     const handleExtractExam = useCallback(async (file: File) => {
@@ -113,9 +82,8 @@ export function Sidebar() {
                     success: true,
                     message: `✅ ${result.total_questions} preguntas extraídas → ${result.filename}`
                 });
-                // Auto-open the new exam file
                 setTimeout(() => {
-                    handleSelectItem('file', result.filename!);
+                    handleSelectFile(result.filename!);
                 }, 500);
             } else {
                 setExamResult({ success: false, message: `❌ ${result.error || 'Error desconocido'}` });
@@ -124,12 +92,10 @@ export function Sidebar() {
             setExamResult({ success: false, message: `❌ ${error instanceof Error ? error.message : 'Error'}` });
         } finally {
             setExamExtracting(false);
-            // Clear file input
             if (examFileRef.current) examFileRef.current.value = '';
-            // Auto-hide result after 8 seconds
             setTimeout(() => setExamResult(null), 8000);
         }
-    }, [handleSelectItem]);
+    }, [handleSelectFile]);
 
     return (
         <aside className="sidebar">
@@ -139,9 +105,6 @@ export function Sidebar() {
                     Explorer
                 </div>
                 <div className="sidebar-actions">
-                    <button className="sidebar-btn" onClick={handleCreateState} title="Nuevo estado">
-                        <Plus size={14} /> Estado
-                    </button>
                     <button className="sidebar-btn" onClick={handleCreateFile} title="Nuevo archivo">
                         <Plus size={14} /> Archivo
                     </button>
@@ -149,41 +112,6 @@ export function Sidebar() {
             </div>
 
             <div className="sidebar-content">
-                {/* Agent State Section */}
-                <div className="section">
-                    <div
-                        className={`section-header ${!stateOpen ? 'collapsed' : ''}`}
-                        onClick={() => setStateOpen(!stateOpen)}
-                    >
-                        <ChevronDown size={12} className="chevron" />
-                        <span>📦 AGENT STATE</span>
-                        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)' }}>
-                            {stateKeys.length}
-                        </span>
-                    </div>
-                    <div className={`section-content ${!stateOpen ? 'collapsed' : ''}`}>
-                        {stateKeys.length === 0 ? (
-                            <div className="tree-item" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                Sin estados
-                            </div>
-                        ) : (
-                            stateKeys.map(key => (
-                                <TreeItem
-                                    key={key}
-                                    type="state"
-                                    name={key}
-                                    icon="📄"
-                                    selected={selectedKey === key}
-                                    isAttached={attachedFiles.some(f => f.type === 'state' && f.name === key)}
-                                    onSelect={() => handleSelectItem('state', key)}
-                                    onAttach={() => handleAttach('state', key)}
-                                    onDelete={(e) => handleDelete('state', key, e)}
-                                />
-                            ))
-                        )}
-                    </div>
-                </div>
-
                 {/* Workspace Files Section */}
                 <div className="section">
                     <div
@@ -205,14 +133,13 @@ export function Sidebar() {
                             files.map(file => (
                                 <TreeItem
                                     key={file.name}
-                                    type="file"
                                     name={file.name}
                                     icon={file.name.endsWith('.json') ? '📋' : '📝'}
                                     selected={selectedKey === `file:${file.name}`}
                                     isAttached={attachedFiles.some(f => f.type === 'file' && f.name === file.name)}
-                                    onSelect={() => handleSelectItem('file', file.name)}
-                                    onAttach={() => handleAttach('file', file.name)}
-                                    onDelete={(e) => handleDelete('file', file.name, e)}
+                                    onSelect={() => handleSelectFile(file.name)}
+                                    onAttach={() => handleAttachFile(file.name)}
+                                    onDelete={(e) => handleDeleteFile(file.name, e)}
                                 />
                             ))
                         )}
@@ -283,7 +210,7 @@ export function Sidebar() {
                     <div
                         className="section-header"
                         onClick={() => {
-                            openTab({ key: '__images__', type: 'state', name: 'Imágenes Médicas' });
+                            openTab({ key: '__images__', type: 'images', name: 'Imágenes Médicas' });
                             setSelectedKey('__images__');
                         }}
                         style={{ cursor: 'pointer' }}
@@ -355,7 +282,6 @@ export function Sidebar() {
 
 // ============== Tree Item Component ==============
 interface TreeItemProps {
-    type: 'state' | 'file';
     name: string;
     icon: string;
     selected: boolean;
@@ -392,4 +318,3 @@ const TreeItem = memo(function TreeItem({ name, icon, selected, isAttached, onSe
         </div>
     );
 });
-

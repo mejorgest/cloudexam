@@ -82,62 +82,65 @@ def _extract_content(url: str) -> dict:
 
 async def google_search(
     query: str,
-    state_key: Optional[str] = None,
+    state_key: Optional[str] = None,  # legacy alias for target_file
+    target_file: Optional[str] = None,
     num_results: int = 3,
-    max_results: int = None  # Alias for num_results
+    max_results: Optional[int] = None,  # legacy alias for num_results
 ) -> str:
-    """Busca en Google y extrae contenido de las páginas."""
+    """
+    Busca en Google y devuelve el contenido extraído.
+
+    - Si se pasa `target_file`, los resultados se anexan a ese archivo del workspace.
+    - Si no, se devuelven como texto (Markdown) para que el agente los use directamente.
+    """
     try:
         from googleapiclient.discovery import build
-        from servers.filesystem_service.file_operations import save_state, load_state
         import datetime
-        
-        # Handle alias
+
         if max_results is not None:
             num_results = max_results
-        
+        if target_file is None and state_key is not None:
+            target_file = state_key  # backwards compat with old callers
+
         if not GOOGLE_CX:
             return "❌ Error: No se ha configurado GOOGLE_SEARCH_CX"
-        
+        if not GOOGLE_API_KEY:
+            return "❌ Error: No se ha configurado GOOGLE_SEARCH_API_KEY"
+
         num_results = min(num_results, 5)
-        
         logger.info(f"🔍 Buscando: '{query}'")
-        
+
         try:
             service = build('customsearch', 'v1', developerKey=GOOGLE_API_KEY)
             result = service.cse().list(q=query, cx=GOOGLE_CX, num=num_results, hl="es").execute()
         except Exception as api_error:
             error_msg = str(api_error)
             if 'quota' in error_msg.lower() or 'limit' in error_msg.lower():
-                return "❌ Error: Cuota de Google Custom Search agotada (100 queries/día). Intenta mañana."
-            elif 'invalid' in error_msg.lower() or 'key' in error_msg.lower():
+                return "❌ Error: cuota de Google Custom Search agotada (100 queries/día)."
+            if 'invalid' in error_msg.lower() or 'key' in error_msg.lower():
                 return "❌ Error: API key de Google inválida. Verifica GOOGLE_SEARCH_API_KEY."
-            else:
-                logger.error(f"Google API error: {api_error}")
-                return f"❌ Error de API de Google: {error_msg[:200]}"
-        
+            logger.error(f"Google API error: {api_error}")
+            return f"❌ Error de API de Google: {error_msg[:200]}"
+
         items = result.get('items', [])
         if not items:
             return f"❌ No se encontraron resultados para: '{query}'"
-        
+
         urls = [item.get('link') for item in items]
         logger.info(f"📄 Extrayendo contenido de {len(urls)} páginas...")
-        
-        # Scraping en paralelo
+
         loop = asyncio.get_event_loop()
         with ThreadPoolExecutor(max_workers=3) as executor:
             results = await loop.run_in_executor(
                 executor,
-                lambda: [_extract_content(url) for url in urls]
+                lambda: [_extract_content(url) for url in urls],
             )
-        
-        # Formatear
+
         output = [
             f"# 🔍 Investigación: {query}",
             f"*Fecha: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}*\n",
-            "---\n"
+            "---\n",
         ]
-        
         successful = 0
         for i, r in enumerate(results, 1):
             if r['success']:
@@ -146,26 +149,27 @@ async def google_search(
                 output.append(f"🔗 {r['url']}\n")
                 output.append(r['content'])
                 output.append("\n---\n")
-        
+
         if successful == 0:
-            return f"❌ No se pudo extraer contenido de las páginas encontradas."
-        
+            return "❌ No se pudo extraer contenido de las páginas encontradas."
+
         formatted = "\n".join(output)
-        
-        # Guardar
-        if state_key:
-            existing = load_state(state_key)
-            if existing:
-                save_state(state_key, f"{existing}\n\n{formatted}")
-                return f"✅ Se agregaron {successful} fuentes al documento '{state_key}'."
-            save_state(state_key, formatted)
-            return f"✅ Se creó '{state_key}' con {successful} fuentes."
-        
-        safe_name = ''.join(c if c.isalnum() else '_' for c in query.lower()[:20])
-        new_key = f"busqueda_{safe_name}"
-        save_state(new_key, formatted)
-        return f"✅ Se guardaron {successful} fuentes en '{new_key}'."
-        
+
+        if target_file:
+            from servers.filesystem_service.file_operations import (
+                read_file,
+                write_file,
+                file_exists,
+            )
+            if file_exists(target_file):
+                existing = read_file(target_file)
+                write_file(target_file, f"{existing}\n\n{formatted}")
+                return f"✅ Se agregaron {successful} fuentes al archivo '{target_file}'."
+            write_file(target_file, formatted)
+            return f"✅ Se creó '{target_file}' con {successful} fuentes."
+
+        return formatted
+
     except Exception as e:
         logger.error(f"Error: {e}")
         return f"❌ Error: {str(e)}"

@@ -66,10 +66,6 @@ class AskPayload(BaseModel):
     thread_id: Optional[str] = "default"
     context_files: Optional[List[Dict[str, str]]] = None  # [{"name": "file.txt", "content": "..."}]
 
-class SaveStatePayload(BaseModel):
-    key: str
-    value: Any
-
 # ============== TOOLS LOADED DYNAMICALLY ==============
 # Todas las herramientas se cargan desde servers/react_tools/tools_loader.py
 # usando StructuredTool.from_function() - sin @tool decorators
@@ -79,60 +75,43 @@ class SaveStatePayload(BaseModel):
 SYSTEM_PROMPT = """Eres un asistente para análisis de exámenes médicos. Tu rol es razonar
 sobre preguntas de exámenes (microbiología, hematología, parasitología, etc.),
 justificar respuestas correctas e incorrectas con evidencia, y ayudar al usuario
-a editar y enriquecer sus documentos de estudio.
+a editar y enriquecer sus archivos de estudio en el workspace.
 
-## 📁 ARQUITECTURA DE DOCUMENTOS
+## 📂 WORKSPACE
 
-### 🗄️ Agent State (documentos DINÁMICOS):
-- Documentos en memoria que puedes CREAR, EDITAR y MODIFICAR.
-- Crear/guardar:  save_state("nombre", contenido)
-- Editar:         smart_edit_state("nombre", "instrucción")
-- Exportar:       export_state_to_file("nombre")  ← solo si el usuario lo pide
-- Ejemplos: justificacion_pregunta_3, notas_microbiologia, resumen_examen_X
+Trabajas sobre archivos guardados en el workspace del usuario. No tienes ningún
+"estado interno" persistente — toda la información que necesites recordar entre
+turnos debe estar en un archivo del workspace.
 
-### 📂 Workspace Files (documentos ESTÁTICOS):
-- Archivos permanentes en disco, SOLO LECTURA.
-- Leer:           read_file("archivo.txt")
-- NUNCA edites archivos directamente; trabaja siempre sobre un state y exporta
-  cuando esté listo.
-
-### 🔄 Flujo de trabajo
-1. Leer archivos relevantes con read_file() para obtener contexto.
-2. Trabajar sobre un STATE con save_state() / smart_edit_state().
-3. Solo cuando el usuario diga "guarda" / "exporta", llamar export_state_to_file().
+Cuando el usuario adjunta un archivo en el chat, recibirás su contenido en el
+mensaje. Para modificarlo, usa `smart_edit_file` o `write_file`.
 
 ## 🛠️ TUS HERRAMIENTAS
 
-### Edición de documentos
-- smart_edit_state(key, instruction)        → editar un state con LLM
-- smart_edit_file(filename, instruction)    → editar un archivo (carga a state)
-- smart_enrich_document(key, instruction)   → enriquecer un state con otra tool
-- smart_resume(text, state_key, lines, ...) → resumir y reemplazar/insertar
-- add_text(key, text, position)             → añadir texto en posición
-- delete_lines(key, start, end)             → borrar líneas (operación exacta)
-- relocate_text(key, start, end, target)    → mover bloque de texto
-- correct_text_in_state(key, old, new)      → reemplazo simple
-
-### Estado y archivos
-- save_state / load_state / get_full_state / search_state / create_new_state
-- read_file / write_file / list_files
-- export_state_to_file(state_key, filename, format)  ← solo bajo petición
-
-### Búsqueda externa
-- buscar_en_google(query, state_key, num_results)
-  Úsalo SOLO cuando el usuario pida explícitamente "busca en internet / Google / web".
-  Si hay un documento adjunto, pasa state_key='nombre' para agregar resultados ahí.
+- `read_file(filename)` — leer un archivo del workspace.
+- `write_file(filename, content)` — crear o sobrescribir un archivo. Úsalo
+  cuando vayas a generar un archivo nuevo o reemplazar uno entero.
+- `list_files(directory=".")` — listar archivos del workspace.
+- `smart_edit_file(filename, instruction)` — editar un archivo con una
+  instrucción en lenguaje natural. Ideal para cambios puntuales sobre un
+  archivo grande sin reescribirlo.
+- `buscar_en_google(query, target_file=None)` — buscar evidencia en internet.
+  Úsalo SOLO cuando el usuario lo pida explícitamente ("busca en internet",
+  "busca en Google", "busca evidencia") o cuando necesites una fuente para
+  justificar una respuesta. Si pasas `target_file`, los resultados se anexan
+  a ese archivo; si no, se devuelven como texto.
 
 ## 🔴 REGLAS
 
-1. NO uses export_state_to_file() automáticamente — solo cuando el usuario lo pida
-   explícitamente ("guarda", "exporta", "guarda como archivo").
-2. Para editar contenido usa smart_edit_state, no escribas archivos directamente.
-3. Cuando justifiques una respuesta de examen, indica brevemente:
+1. Para editar un archivo grande, prefiere `smart_edit_file` antes que
+   `write_file` con todo el contenido — evita perder cambios por error.
+2. NO crees archivos nuevos a menos que el usuario lo pida o lo necesites
+   para guardar un resultado de búsqueda.
+3. Cuando justifiques una respuesta de examen, sé breve y estructurado:
    - cuál es la opción correcta y por qué,
    - por qué las otras opciones son incorrectas,
-   - cita la fuente si la obtuviste de buscar_en_google.
-4. Sé conciso y directo. No repitas información ya presente en el documento.
+   - cita la URL si obtuviste la información con `buscar_en_google`.
+4. No repitas información ya presente en el archivo adjunto.
 """
 
 # ============== LIFESPAN ==============
@@ -280,28 +259,6 @@ async def get_tools():
         "count": len(tools)
     }
 
-@app.get("/api/workspace/state")
-async def get_agent_state():
-    """Obtiene el estado persistente del agente"""
-    try:
-        from servers.filesystem_service.file_operations import get_full_state
-        state = get_full_state()
-        return {"state": state}
-    except Exception as e:
-        logger.error(f"Error getting state: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/workspace/state")
-async def save_agent_state(payload: SaveStatePayload):
-    """Guarda un valor en el estado del agente"""
-    try:
-        from servers.filesystem_service.file_operations import save_state
-        result = save_state(payload.key, payload.value)
-        return {"success": True, "message": result}
-    except Exception as e:
-        logger.error(f"Error saving state: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/api/workspace/files")
 async def list_workspace_files():
     """Lista archivos en el workspace"""
@@ -355,33 +312,6 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception:
         pass  # Connection closed
 
-@app.post("/api/workspace/state/delete")
-async def delete_state_key(payload: dict):
-    """Elimina una clave del estado del agente"""
-    try:
-        key = payload.get("key", "")
-        if not key:
-            return {"error": "No se especificó la clave a eliminar"}
-        
-        from servers.filesystem_service.file_operations import get_full_state, save_state, _log_change
-        state = get_full_state()
-        
-        if key not in state:
-            return {"error": f"Clave '{key}' no encontrada en el estado"}
-        
-        del state[key]
-        
-        # Guardar estado sin la clave
-        from servers.filesystem_service.file_operations import write_json
-        write_json("agent_state.json", state)
-        _log_change("DELETE_STATE", f"state['{key}']", "")
-        
-        logger.info(f"🗑️ State key deleted: {key}")
-        return {"success": True, "deleted": key}
-    except Exception as e:
-        logger.error(f"Error deleting state key: {e}")
-        return {"error": str(e)}
-
 @app.post("/api/workspace/files/write")
 async def write_workspace_file(payload: dict):
     """Escribe contenido a un archivo del workspace"""
@@ -420,79 +350,6 @@ async def delete_workspace_file(payload: dict):
         logger.error(f"Error deleting file: {e}")
         return {"error": str(e)}
 # ============== FILE IMPORT ENDPOINT ==============
-
-@app.post("/api/import")
-async def import_file(file: UploadFile = File(...), state_key: str = Form(None)):
-    """
-    Importa un archivo desde el navegador y lo convierte en un estado.
-    
-    Args:
-        file: El archivo a importar
-        state_key: Nombre opcional para el estado (si no se proporciona, usa el nombre del archivo)
-    
-    Tipos soportados: .txt, .md, .json, .csv, .html, .xml, .py, .js, .ts, .yaml, .yml
-    """
-    try:
-        from servers.filesystem_service.file_operations import save_state, _log_change
-        import os
-        
-        # Leer contenido del archivo
-        content = await file.read()
-        filename = file.filename or "imported_file"
-        
-        # Determinar el nombre del estado
-        if not state_key:
-            # Usar nombre del archivo sin extensión, reemplazando espacios con _
-            base_name = os.path.splitext(filename)[0]
-            state_key = base_name.replace(" ", "_").replace("-", "_").lower()
-        
-        # Detectar codificación y decodificar
-        try:
-            text_content = content.decode('utf-8')
-        except UnicodeDecodeError:
-            try:
-                text_content = content.decode('latin-1')
-            except:
-                text_content = content.decode('utf-8', errors='ignore')
-        
-        # Detectar tipo de archivo y procesar si es necesario
-        ext = os.path.splitext(filename)[1].lower()
-        
-        if ext == '.json':
-            import json
-            try:
-                data = json.loads(text_content)
-                text_content = json.dumps(data, indent=2, ensure_ascii=False)
-            except:
-                pass  # Si falla, mantener como texto
-        
-        elif ext == '.csv':
-            # Convertir CSV a formato legible
-            lines = text_content.strip().split('\n')
-            if lines:
-                header = f"📊 CSV importado: {filename}\n"
-                header += f"📝 {len(lines)} filas\n\n"
-                text_content = header + text_content
-        
-        # Guardar como estado
-        save_state(state_key, text_content)
-        _log_change("IMPORT_FILE", f"state['{state_key}']", f"Importado desde: {filename}")
-        
-        logger.info(f"📥 File imported: {filename} -> state['{state_key}']")
-        
-        return {
-            "success": True,
-            "state_key": state_key,
-            "filename": filename,
-            "size": len(text_content),
-            "lines": text_content.count('\n') + 1
-        }
-        
-    except Exception as e:
-        logger.error(f"Error importing file: {e}")
-        return {"error": str(e)}
-
-# ============== PDF UPLOAD ENDPOINT ==============
 
 # ============== EXAM EXTRACTION FROM PDF ==============
 
@@ -1164,60 +1021,6 @@ Solo incluye imágenes con score >= 4. JSON puro sin markdown."""
         traceback.print_exc()
         return {"success": False, "error": str(e), "a2ui_components": [], "keywords_detected": []}
 
-@app.post("/api/export")
-async def export_state_to_file(payload: dict):
-    """
-    Exporta un estado a un archivo del workspace.
-    
-    Args:
-        state_key: Clave del estado a exportar
-        filename: Nombre del archivo (opcional)
-        format: Formato del archivo: txt, md, json (default: txt)
-    """
-    try:
-        from servers.filesystem_service.file_operations import load_state, write_file, _log_change
-        
-        state_key = payload.get("state_key")
-        filename = payload.get("filename")
-        file_format = payload.get("format", "txt")
-        
-        if not state_key:
-            return {"error": "Se requiere state_key"}
-        
-        # Cargar el estado
-        content = load_state(state_key)
-        if not content:
-            return {"error": f"No existe el estado '{state_key}'"}
-        
-        # Convertir a string si es necesario
-        if not isinstance(content, str):
-            import json
-            content = json.dumps(content, indent=2, ensure_ascii=False)
-        
-        # Determinar nombre del archivo
-        if not filename:
-            filename = f"{state_key}.{file_format}"
-        elif not filename.endswith(f".{file_format}"):
-            filename = f"{filename}.{file_format}"
-        
-        # Escribir archivo
-        write_file(filename, content)
-        _log_change("EXPORT_STATE", f"state['{state_key}'] -> file['{filename}']", f"Exportado ({len(content)} chars)")
-        
-        logger.info(f"📤 State exported: {state_key} -> {filename}")
-        
-        return {
-            "success": True,
-            "state_key": state_key,
-            "filename": filename,
-            "size": len(content),
-            "lines": content.count('\n') + 1
-        }
-        
-    except Exception as e:
-        logger.error(f"Error exporting state: {e}")
-        return {"error": str(e)}
-
 # ============== CHECKPOINT/VERSIONING ENDPOINTS ==============
 
 @app.get("/api/checkpoints")
@@ -1266,103 +1069,6 @@ async def restore_checkpoint_endpoint(payload: dict):
         logger.error(f"Error restoring checkpoint: {e}")
         return {"success": False, "error": str(e)}
 
-@app.get("/api/checkpoints/{commit_hash}/state")
-async def get_checkpoint_state(commit_hash: str):
-    """Obtiene el estado en un checkpoint específico (preview sin restaurar)"""
-    try:
-        from servers.versioning_service.git_checkpoints import get_state_at_checkpoint
-        state = get_state_at_checkpoint(commit_hash)
-        if state:
-            return {"success": True, "state": state}
-        return {"success": False, "error": "No se pudo obtener el estado"}
-    except Exception as e:
-        logger.error(f"Error getting checkpoint state: {e}")
-        return {"success": False, "error": str(e)}
-
-@app.get("/api/diff/{state_key}")
-async def get_state_diff(state_key: str):
-    """
-    Gets the diff between current state and previous version.
-    Returns old content, new content, and computed diff for side-by-side view.
-    """
-    try:
-        import difflib
-        from servers.versioning_service.git_checkpoints import get_state_at_checkpoint, list_checkpoints
-        from servers.filesystem_service.file_operations import load_state
-        
-        # Get current content
-        current = load_state(state_key)
-        if current is None:
-            raise HTTPException(status_code=404, detail=f"Estado '{state_key}' no encontrado")
-        
-        current_str = current if isinstance(current, str) else str(current)
-        
-        # Get previous version from git history (most recent checkpoint that has this state)
-        old_content = ""
-        previous_hash = None
-        checkpoints = list_checkpoints(limit=20)
-        
-        # Find the most recent checkpoint that contains this state AND is different from current
-        for cp in checkpoints:
-            old_state = get_state_at_checkpoint(cp['hash'])
-            if old_state and state_key in old_state:
-                old_val = old_state.get(state_key, "")
-                candidate_content = old_val if isinstance(old_val, str) else str(old_val)
-                
-                # Only use this checkpoint if it's DIFFERENT from current
-                if candidate_content != current_str:
-                    old_content = candidate_content
-                    previous_hash = cp['hash']
-                    break
-                # If same content, this checkpoint is current - keep looking for previous
-                continue
-        
-        # Compute line-by-line diff
-        old_lines = old_content.splitlines()
-        new_lines = current_str.splitlines()
-        
-        # Use SequenceMatcher for better diff
-        diff_result = []
-        matcher = difflib.SequenceMatcher(None, old_lines, new_lines)
-        
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            if tag == 'equal':
-                for line in old_lines[i1:i2]:
-                    diff_result.append({'type': 'same', 'old': line, 'new': line})
-            elif tag == 'replace':
-                # Lines changed - show both old and new
-                old_chunk = old_lines[i1:i2]
-                new_chunk = new_lines[j1:j2]
-                max_len = max(len(old_chunk), len(new_chunk))
-                for k in range(max_len):
-                    diff_result.append({
-                        'type': 'change',
-                        'old': old_chunk[k] if k < len(old_chunk) else '',
-                        'new': new_chunk[k] if k < len(new_chunk) else ''
-                    })
-            elif tag == 'delete':
-                for line in old_lines[i1:i2]:
-                    diff_result.append({'type': 'remove', 'old': line, 'new': ''})
-            elif tag == 'insert':
-                for line in new_lines[j1:j2]:
-                    diff_result.append({'type': 'add', 'old': '', 'new': line})
-        
-        return {
-            "success": True,
-            "state_key": state_key,
-            "old_content": old_content,
-            "new_content": current_str,
-            "diff": diff_result,
-            "has_changes": old_content != current_str,
-            "previous_hash": previous_hash
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting diff: {e}")
-        return {"success": False, "error": str(e)}
-
 @app.post("/api/ask")
 async def ask_question(payload: AskPayload):
     """
@@ -1385,183 +1091,38 @@ async def ask_question(payload: AskPayload):
         message_content = payload.question
         
         if payload.context_files:
-            import re
-            from servers.filesystem_service.file_operations import get_full_state
-            
             logger.info("=" * 60)
-            logger.info("📎 CONTEXT FILES RECEIVED FROM FRONTEND:")
+            logger.info(f"📎 {len(payload.context_files)} context file(s) attached")
             for i, cf in enumerate(payload.context_files):
                 cf_name = cf.get("name", "unknown")
                 cf_content = cf.get("content", "")
-                cf_lines = cf_content.count('\n') + 1 if cf_content else 0
-                logger.info(f"  [{i}] Name: {cf_name}")
-                logger.info(f"      Content length: {len(cf_content)} chars, {cf_lines} lines")
-                logger.info(f"      Content preview: {cf_content[:100]}...")
+                logger.info(f"  [{i}] {cf_name} ({len(cf_content)} chars)")
             logger.info("=" * 60)
-            
+
+            # Build a flat attachment block. Files are referenced by name; if the
+            # agent needs to edit one, it should use smart_edit_file/write_file.
             context_parts = []
-            edit_instructions = []
-            state_keys = []  # Track state keys for smart editing
-            line_ranges = {}  # Track line ranges for snippets {key: (start, end)}
-            
-            # Load current state for auto-detection
-            current_state = {}
-            try:
-                current_state = get_full_state() or {}
-            except:
-                pass
-            
+            attached_filenames = []
             for ctx_file in payload.context_files:
                 file_name = ctx_file.get("name", "unknown")
                 file_content = ctx_file.get("content", "")
-                context_parts.append(f"📎 DOCUMENTO ADJUNTO: {file_name}\n```\n{file_content}\n```")
-                
-                # Parse the file reference - handle state:, file:, and snippet: prefixes
-                key = None
-                is_state = False
-                start_line = None
-                end_line = None
-                
-                if file_name.startswith("state:"):
-                    key = file_name.replace("state:", "")
-                    is_state = True
-                elif file_name.startswith("file:"):
-                    key = file_name.replace("file:", "")
-                    is_state = False
-                elif file_name.startswith("snippet:"):
-                    # Extract key and line range from snippet:name[start-end] or snippet:name [start - end] format
-                    # Allow optional spaces around brackets and dash
-                    match = re.match(r'snippet:([^\[]+?)\s*\[\s*(\d+)\s*-\s*(\d+)\s*\]', file_name)
-                    if match:
-                        key = match.group(1).strip()  # Remove trailing space from name
-                        start_line = int(match.group(2))
-                        end_line = int(match.group(3))
-                        line_ranges[key] = (start_line, end_line)
-                        is_state = True  # Snippets from viewer are typically from state
-                        logger.info(f"📍 SNIPPET PARSED: key='{key}', lines={start_line}-{end_line}")
-                    else:
-                        # Fallback for snippet without range
-                        match = re.match(r'snippet:([^\[]+)', file_name)
-                        if match:
-                            key = match.group(1)
-                            is_state = True
-                else:
-                    # AUTO-DETECT: Si el nombre no tiene prefijo, buscar el texto en estados existentes
-                    if file_content and current_state and len(file_content.strip()) > 20:
-                        # Normalizar texto para comparación (solo alfanuméricos y espacios)
-                        def normalize(text):
-                            import re as re_inner
-                            # Remover markdown, puntuación extra, normalizar espacios
-                            text = re_inner.sub(r'\*\*|\*|_|#', '', text)  # Quitar markdown
-                            text = ' '.join(text.split()).lower()
-                            return text
-                        
-                        # Usar un fragmento significativo del texto pegado para buscar
-                        normalized_content = normalize(file_content)
-                        search_fragment = normalized_content[:150]  # Primeros 150 chars
-                        
-                        best_match = None
-                        best_lines = None
-                        
-                        logger.info(f"🔍 Buscando texto pegado en estados... (fragmento: '{search_fragment[:50]}...')")
-                        
-                        for state_key, state_value in current_state.items():
-                            if state_key.startswith('_'):
-                                continue  # Skip internal keys
-                            if not isinstance(state_value, str):
-                                continue
-                            
-                            normalized_state = normalize(state_value)
-                            
-                            # Verificar si el fragmento está contenido en el estado
-                            if search_fragment in normalized_state:
-                                best_match = state_key
-                                
-                                # Tratar de encontrar las líneas específicas
-                                state_lines = state_value.split('\n')
-                                pasted_lines = file_content.strip().split('\n')
-                                first_pasted = normalize(pasted_lines[0])
-                                
-                                for i, state_line in enumerate(state_lines):
-                                    if first_pasted[:30] in normalize(state_line):
-                                        best_lines = (i + 1, i + len(pasted_lines))
-                                        break
-                                
-                                break
-                        
-                        if best_match:
-                            key = best_match
-                            is_state = True
-                            if best_lines:
-                                start_line, end_line = best_lines
-                                line_ranges[key] = (start_line, end_line)
-                                logger.info(f"🔍 AUTO-DETECTADO: Texto pegado es de '{key}' líneas {start_line}-{end_line}")
-                            else:
-                                logger.info(f"🔍 AUTO-DETECTADO: Texto pegado pertenece al estado '{key}'")
-                            file_name = f"texto_pegado_de:{key}"
-                
-                if key:
-                    if is_state:
-                        state_keys.append(key)
-                        if key in line_ranges:
-                            sl, el = line_ranges[key]
-                            # Snippet con rango específico - instrucciones más precisas
-                            edit_instructions.append(f"  ⚠️ FRAGMENTO SELECCIONADO: '{key}' líneas {sl}-{el}")
-                            edit_instructions.append(f"  • BORRAR: delete_lines('{key}', start_line={sl}, end_line={el}) ← ¡Para eliminar!")
-                            edit_instructions.append(f"  • EDITAR: smart_edit_state('{key}', 'instrucción', start_line={sl}, end_line={el})")
-                            edit_instructions.append(f"  • RESUMIR: smart_resume(text='contenido del fragmento', state_key='{key}', start_line={sl}, end_line={el})")
-                        else:
-                            edit_instructions.append(f"  • EDICIÓN INTELIGENTE: smart_edit_state('{key}', 'instrucción de qué cambiar')")
-                            edit_instructions.append(f"  • RESUMIR: smart_resume(text='texto a resumir', state_key='{key}')")
-                        edit_instructions.append(f"  • EDICIÓN EXACTA: correct_text_in_state('{key}', 'texto_viejo', 'texto_nuevo')")
-                    else:
-                        edit_instructions.append(f"  • EDICIÓN INTELIGENTE: smart_edit_file('{key}', 'instrucción de qué cambiar')")
-                        edit_instructions.append(f"  • EDICIÓN EXACTA: edit_document('{key}', 'texto_viejo', 'texto_nuevo')")
-            
+                # Strip prefixes left over from older UI versions (state:/file:/snippet:).
+                clean_name = file_name.split(":", 1)[1] if ":" in file_name else file_name
+                attached_filenames.append(clean_name)
+                context_parts.append(
+                    f"📎 ARCHIVO ADJUNTO: {clean_name}\n```\n{file_content}\n```"
+                )
+
+            files_str = ", ".join(f"'{n}'" for n in attached_filenames)
             context_str = "\n\n".join(context_parts)
-            
-            # Create clearer instructions
-            state_keys_str = ", ".join([f"'{k}'" for k in state_keys]) if state_keys else "ninguno"
-            
-            # Advertencia especial si hay fragmento seleccionado
-            fragment_warning = ""
-            if line_ranges:
-                for k, (sl, el) in line_ranges.items():
-                    fragment_warning = f"""
 
-🎯 ATENCIÓN CRÍTICA: El usuario seleccionó SOLO las líneas {sl}-{el} de '{k}'.
-- Para BORRAR/ELIMINAR: delete_lines('{k}', start_line={sl}, end_line={el}) ← ¡Usa si dice 'borra', 'elimina', 'quita'!
-- Para EDITAR: smart_edit_state('{k}', 'instrucción', start_line={sl}, end_line={el})
-- Para RESUMIR: smart_resume(text='<el texto del fragmento>', state_key='{k}', start_line={sl}, end_line={el})
-⚠️ DEBES pasar start_line={sl} y end_line={el} para que los cambios afecten SOLO ese fragmento."""
-            
-            message_content = f"""⚠️ DOCUMENTO(S) ADJUNTO(S) - El usuario ha seleccionado documento(s) para trabajar.
-
-📋 ESTADOS/DOCUMENTOS ADJUNTOS: {state_keys_str}{fragment_warning}
-
-📝 HERRAMIENTAS PARA EDITAR:
-{chr(10).join(edit_instructions) if edit_instructions else "  (ninguna acción disponible)"}
-
-⛔ REGLAS IMPORTANTES:
-- SI hay un fragmento seleccionado (líneas específicas), USA start_line y end_line para editar SOLO ese fragmento
-- USA smart_edit_state() para editar ESTADOS (keys en agent_state.json)
-- USA smart_edit_file() para editar ARCHIVOS (files en workspace)
-- El documento '{state_keys[0] if state_keys else "adjunto"}' es un ESTADO, NO un archivo
-- NO uses save_state para crear nuevas claves, solo para actualizar existentes
-
----
-
-{context_str}
-
----
-
-🗣️ Instrucción del usuario: {payload.question}"""
-            
-            logger.info(f"📎 Context files attached for EDITING: {[f.get('name') for f in payload.context_files]}")
-            logger.info(f"📋 Detected state keys: {state_keys}")
-            logger.info(f"📍 Line ranges detected: {line_ranges}")
-            if fragment_warning:
-                logger.info(f"⚠️ Fragment warning: {fragment_warning[:200]}...")
+            message_content = (
+                f"📋 ARCHIVOS ADJUNTOS: {files_str}\n\n"
+                f"Para editar uno de estos archivos usa smart_edit_file('nombre', 'instrucción') "
+                f"o write_file('nombre', 'contenido nuevo').\n\n"
+                f"---\n\n{context_str}\n\n---\n\n"
+                f"🗣️ Instrucción del usuario: {payload.question}"
+            )
         
         # Invoke agent with ReAct loop
         logger.info("🤖 Invoking React Agent...")
@@ -1612,9 +1173,8 @@ async def ask_question(payload: AskPayload):
         
         # Crear checkpoint automático si se usaron herramientas que modifican estado
         checkpoint_hash = None
-        state_modifying_tools = {'save_state', 'write_file', 'smart_edit_state', 'smart_edit_file', 
-                                  'smart_enrich_document', 'correct_text_in_state', 'edit_document'}
-        if any(tool in tool_calls for tool in state_modifying_tools):
+        file_modifying_tools = {'write_file', 'smart_edit_file'}
+        if any(tool in tool_calls for tool in file_modifying_tools):
             try:
                 from servers.versioning_service.git_checkpoints import create_checkpoint
                 short_question = payload.question[:50] + "..." if len(payload.question) > 50 else payload.question

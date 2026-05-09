@@ -369,97 +369,11 @@ def create_directory(dirname: str) -> str:
     return f"✅ Directory created: {dirname}"
 
 
-# ============== STATE MANAGEMENT ==============
-
-def save_state(key: str, value: Any, state_file: str = "agent_state.json") -> str:
-    """
-    Save a key-value pair to the agent's persistent state.
-    
-    Args:
-        key: State key (trailing/leading spaces are stripped automatically)
-        value: State value (must be JSON serializable)
-        state_file: State file name (default: agent_state.json)
-    
-    Returns:
-        Success message
-    
-    Example:
-        save_state('last_processed_id', 123)
-        save_state('progress', {'completed': 50, 'total': 100})
-    """
-    # Normalizar la clave - eliminar espacios al principio y final
-    key = key.strip() if key else key
-    
-    try:
-        state = read_json(state_file)
-    except FileNotFoundError:
-        state = {}
-    
-    state[key] = value
-    state["_last_updated"] = datetime.now().isoformat()
-    
-    # Log detallado
-    value_preview = str(value)[:100] if value else ""
-    _log_change("SAVE_STATE", f"state['{key}']", value_preview)
-    
-    return write_json(state_file, state)
-
-
-def load_state(key: str, default: Any = None, state_file: str = "agent_state.json") -> Any:
-    """
-    Load a value from the agent's persistent state.
-    
-    Args:
-        key: State key to retrieve (trailing/leading spaces are stripped automatically)
-        default: Default value if key doesn't exist
-        state_file: State file name
-    
-    Returns:
-        The stored value or default
-    
-    Example:
-        last_id = load_state('last_processed_id', 0)
-        progress = load_state('progress', {'completed': 0, 'total': 0})
-    """
-    # Normalizar la clave - eliminar espacios al principio y final
-    key = key.strip() if key else key
-    
-    try:
-        state = read_json(state_file)
-        return state.get(key, default)
-    except FileNotFoundError:
-        return default
-
-
-def get_full_state(state_file: str = "agent_state.json") -> Dict[str, Any]:
-    """
-    Get the entire agent state.
-    
-    Returns:
-        Full state dictionary
-    """
-    try:
-        return read_json(state_file)
-    except FileNotFoundError:
-        return {}
-
-
-def clear_state(state_file: str = "agent_state.json") -> str:
-    """
-    Clear all agent state.
-    
-    Returns:
-        Success message
-    """
-    return write_json(state_file, {"_cleared": datetime.now().isoformat()})
-
-
 # Convenience exports
 __all__ = [
     'read_file', 'read_json', 'read_csv', 'list_files', 'file_exists',
     'write_file', 'write_json', 'write_csv', 'append_file',
     'edit_file', 'delete_file', 'create_directory',
-    'save_state', 'load_state', 'get_full_state', 'clear_state',
     'get_change_log', 'CHANGE_LOG',
     'WORKSPACE_PATH', 'SKILLS_PATH'
 ]

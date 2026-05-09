@@ -67,7 +67,7 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/api/workspace/state || exit 1
+    CMD curl -f http://localhost:8000/api/workspace/files || exit 1
 
 # Run the React Agent application
 CMD ["uvicorn", "host_and_client_react_agent:app", "--host", "0.0.0.0", "--port", "8000"]

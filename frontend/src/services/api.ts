@@ -1,39 +1,11 @@
 import type {
-    StateData,
     ContextInfo,
     ChangelogEntry,
     AskResponse,
-    DiffData,
     ExamQuestion,
 } from '../types';
 
 const API_BASE = '';  // Same origin
-
-// ============== State API ==============
-
-export async function fetchState(): Promise<{ state: StateData }> {
-    const response = await fetch(`${API_BASE}/api/workspace/state`);
-    if (!response.ok) throw new Error('Failed to fetch state');
-    return response.json();
-}
-
-export async function saveState(key: string, value: string): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/workspace/state`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value }),
-    });
-    if (!response.ok) throw new Error('Failed to save state');
-}
-
-export async function deleteState(key: string): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/workspace/state/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key }),
-    });
-    if (!response.ok) throw new Error('Failed to delete state');
-}
 
 // ============== Files API ==============
 
@@ -164,51 +136,6 @@ export async function* askAgentStream(request: AskRequest): AsyncGenerator<{
     }
 }
 
-// ============== RAG API ==============
-
-export interface RagSearchRequest {
-    query: string;
-    num_results?: number;
-}
-
-export async function* ragSearchStream(request: RagSearchRequest): AsyncGenerator<{
-    type: string;
-    content?: unknown;
-}> {
-    const response = await fetch(`${API_BASE}/api/rag/search/stream`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-    });
-
-    if (!response.ok) throw new Error('Failed to start RAG search');
-    if (!response.body) throw new Error('No response body');
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-            if (line.startsWith('data: ')) {
-                try {
-                    const data = JSON.parse(line.slice(6));
-                    yield data;
-                } catch (e) {
-                    console.warn('Failed to parse RAG SSE data:', line, e);
-                }
-            }
-        }
-    }
-}
-
 // ============== Context API ==============
 
 export async function fetchContextInfo(): Promise<ContextInfo> {
@@ -222,14 +149,6 @@ export async function fetchContextInfo(): Promise<ContextInfo> {
 export async function fetchChangelog(): Promise<{ changes: ChangelogEntry[] }> {
     const response = await fetch(`${API_BASE}/api/debug/changelog`);
     if (!response.ok) throw new Error('Failed to fetch changelog');
-    return response.json();
-}
-
-// ============== Diff API ==============
-
-export async function fetchDiff(stateKey: string): Promise<DiffData> {
-    const response = await fetch(`${API_BASE}/api/diff/${encodeURIComponent(stateKey)}`);
-    if (!response.ok) throw new Error('Failed to fetch diff');
     return response.json();
 }
 

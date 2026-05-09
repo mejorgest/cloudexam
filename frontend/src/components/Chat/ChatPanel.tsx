@@ -19,7 +19,6 @@ export function ChatPanel() {
         addSnippetRef,
         isLoading,
         setIsLoading,
-        state,
         selectedKey,
         currentAnalyzingIndex,
         setCurrentAnalyzingIndex,
@@ -129,30 +128,21 @@ export function ChatPanel() {
                 });
             }
 
-            // Auto-attach current tab if no context and not analyzing exam
+            // Auto-attach current tab (file) if no context and not analyzing exam
             if (contextItems.length === 0 && selectedKey && currentAnalyzingIndex === null) {
                 const isExamFile = selectedKey.toLowerCase().includes('examen') ||
                     selectedKey.toLowerCase().includes('pregunta') ||
                     selectedKey.endsWith('.json');
 
-                if (!isExamFile) {
-                    const isFile = selectedKey.startsWith('file:');
-                    const type = isFile ? 'file' : 'state';
-                    const name = isFile ? selectedKey.replace('file:', '') : selectedKey;
-
-                    let content = '';
-                    if (isFile) {
-                        try {
-                            const data = await readFile(name);
-                            content = data.content || '';
-                        } catch { /* ignore */ }
-                    } else {
-                        content = String(state[selectedKey] || '');
-                    }
-
-                    if (content) {
-                        contextItems.push({ name: `${type}:${name}`, content });
-                    }
+                if (!isExamFile && selectedKey.startsWith('file:')) {
+                    const name = selectedKey.replace('file:', '');
+                    try {
+                        const data = await readFile(name);
+                        const content = data.content || '';
+                        if (content) {
+                            contextItems.push({ name, content });
+                        }
+                    } catch { /* ignore */ }
                 }
             }
 
@@ -289,7 +279,7 @@ export function ChatPanel() {
             setAnalysisMode(null);
         }
     }, [
-        inputValue, isLoading, attachedFiles, snippetRefs, selectedKey, state,
+        inputValue, isLoading, attachedFiles, snippetRefs, selectedKey,
         currentAnalyzingIndex, analysisMode, pendingExamAnalysis,
         addMessage, updateMessage, setIsLoading, clearSnippetRefs,
         setCurrentAnalyzingIndex, setAnalysisMode,
