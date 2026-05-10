@@ -209,7 +209,7 @@ export function Sidebar() {
                             </div>
                         )}
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', padding: '0 8px' }}>
-                            Usa Gemini AI para extraer preguntas de un PDF de examen al formato JSON del visor.
+                            Usa OpenAI Vision para extraer preguntas de un PDF de examen al formato JSON del visor.
                         </div>
                     </div>
                 </div>

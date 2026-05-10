@@ -459,13 +459,6 @@ export function ChatPanel() {
 
 
 
-    // Quick actions
-    const quickActions = [
-        { label: '📋 Estado', action: () => setInputValue('¿Qué hay en el estado actual?') },
-        { label: '🔍 Buscar', action: () => setInputValue('Busca información sobre ') },
-        { label: '📝 Resumir', action: () => setInputValue('Resume el contenido seleccionado') },
-    ];
-
     return (
         <div className="chat-panel">
             {/* Header */}
@@ -482,15 +475,6 @@ export function ChatPanel() {
                     <MessageItem key={msg.id} message={msg} />
                 ))}
                 <div ref={messagesEndRef} />
-            </div>
-
-            {/* Quick Actions */}
-            <div className="quick-actions">
-                {quickActions.map((action, i) => (
-                    <button key={i} className="quick-action" onClick={action.action}>
-                        {action.label}
-                    </button>
-                ))}
             </div>
 
             {/* Attached Files */}
