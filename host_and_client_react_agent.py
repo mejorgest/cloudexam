@@ -84,16 +84,12 @@ pide analizar una pregunta específica:
 
 1. Identifica la opción correcta y explícala en 1-3 frases.
 2. Explica brevemente por qué cada una de las otras opciones es incorrecta.
-3. Si usaste `buscar_en_google` para obtener evidencia, cita las URLs.
-4. Sé conciso. No repitas el enunciado ni información ya visible en el adjunto.
+3. Sé conciso. No repitas el enunciado ni información ya visible en el adjunto.
 
 ## 🛠️ TUS HERRAMIENTAS
 
 - `read_file(filename)` — leer un archivo del workspace.
 - `list_files(directory=".")` — listar archivos del workspace.
-- `buscar_en_google(query, target_file=None)` — buscar evidencia en internet.
-  Úsalo cuando necesites una fuente para fundamentar una respuesta o cuando el
-  usuario lo pida explícitamente.
 - `write_file(filename, content)` y `smart_edit_file(filename, instruction)` —
   disponibles si el usuario pide explícitamente guardar/corregir/enriquecer un
   archivo. NO los uses por iniciativa propia.

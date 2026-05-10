@@ -10,7 +10,7 @@ Uso:
 """
 
 import logging
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel, Field
 from langchain_core.tools import StructuredTool
 
@@ -31,15 +31,6 @@ class DirectoryInput(BaseModel):
 class SmartEditFileInput(BaseModel):
     filename: str = Field(description="Nombre del archivo a editar")
     instruction: str = Field(description="Instrucción en lenguaje natural de qué cambiar")
-
-class GoogleSearchInput(BaseModel):
-    """Schema para búsqueda en Google."""
-    query: str = Field(description="Términos de búsqueda")
-    target_file: Optional[str] = Field(
-        default=None,
-        description="Si se proporciona, agrega los resultados a este archivo del workspace. Si no, los devuelve como texto.",
-    )
-    num_results: int = Field(default=5, description="Número de resultados (máximo 10)")
 
 
 # ============== FUNCIONES DE HERRAMIENTAS ==============
@@ -82,14 +73,6 @@ async def smart_edit_file_func(filename: str, instruction: str) -> str:
         logger.error(f"Error en smart_edit_file: {e}")
         return f"Error editando archivo: {str(e)}"
 
-async def google_search_func(query: str, target_file: str = None, num_results: int = 5) -> str:
-    """Busca información en Google y opcionalmente la agrega a un archivo del workspace."""
-    try:
-        from servers.advanced_tools.google_search import google_search
-        return await google_search(query, state_key=target_file, num_results=num_results)
-    except Exception as e:
-        return f"Error en búsqueda de Google: {str(e)}"
-
 
 # ============== CARGADOR DE HERRAMIENTAS ==============
 
@@ -119,18 +102,6 @@ def load_all_tools() -> List[StructuredTool]:
             name="smart_edit_file",
             description="Edita un archivo del workspace con una instrucción en lenguaje natural (usa LLM). Ejemplo: smart_edit_file('examen.json', 'corrige la pregunta 3').",
             args_schema=SmartEditFileInput,
-        ),
-        StructuredTool.from_function(
-            coroutine=google_search_func,
-            name="buscar_en_google",
-            description=(
-                "Busca información en INTERNET usando Google. Úsala cuando el usuario diga "
-                "explícitamente 'busca en internet', 'busca en la web', 'busca en Google', "
-                "o cuando necesites evidencia externa para justificar una pregunta de examen. "
-                "Si hay un archivo adjunto, pasa target_file='nombre_archivo' para añadir los "
-                "resultados a ese archivo en lugar de devolverlos como texto."
-            ),
-            args_schema=GoogleSearchInput,
         ),
     ]
 

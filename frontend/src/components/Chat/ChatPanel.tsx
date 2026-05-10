@@ -577,7 +577,6 @@ interface MessageItemProps {
 // Tool patterns to detect and replace with indicators
 const TOOL_PATTERNS: { pattern: RegExp; icon: string; label: string }[] = [
     { pattern: /rag_search\s*\(/i, icon: '📚', label: 'Buscando en documentos PDF...' },
-    { pattern: /google_search\s*\(/i, icon: '🌐', label: 'Buscando en la web...' },
     { pattern: /read_file\s*\(/i, icon: '📄', label: 'Leyendo archivo...' },
     { pattern: /write_file\s*\(/i, icon: '💾', label: 'Escribiendo archivo...' },
     { pattern: /execute_python\s*\(/i, icon: '🐍', label: 'Ejecutando código...' },

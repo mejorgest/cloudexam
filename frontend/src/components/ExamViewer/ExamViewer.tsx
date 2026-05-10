@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import { useAppStore } from '../../store/appStore';
 import { writeFile } from '../../services/api';
 import type { ExamQuestion, ExamOption } from '../../types';
-import { Trash2, Plus, FileText, Brain, Globe, Save } from 'lucide-react';
+import { Trash2, Plus, FileText, Brain, Save } from 'lucide-react';
 import { A2UIImageGallery } from '../A2UIImageGallery';
 
 // Sanitizer config: allow basic inline formatting + color/highlight via style attr.
@@ -561,47 +561,6 @@ Tu respuesta (solo contenido médico):`;
         setTimeout(() => triggerSend(), 50);
     }, [questions, examKey, originalData, setCurrentAnalyzingIndex, setAnalysisMode, setPendingExamAnalysis, setChatInputValue, triggerSend]);
 
-    // Handle Web Search analysis
-    const handleWebSearch = useCallback((index: number) => {
-        const question = questions[index];
-        const optionsText = question.opciones.map(o => `${o.letra}) ${o.texto}`).join('\n');
-
-        const prompt = `INSTRUCCIONES ESTRICTAS - SIGUE ESTE ORDEN EXACTO:
-
-1. PRIMERO: Usa google_search para buscar información sobre el tema médico de la pregunta.
-2. SEGUNDO: Muestra las fuentes web encontradas con sus URLs.
-3. TERCERO: Basándote ÚNICAMENTE en las fuentes encontradas, proporciona UNA SOLA respuesta.
-
-NO respondas antes de buscar. NO repitas la respuesta.
-
-PREGUNTA ${index + 1}:
-${question.pregunta}
-
-OPCIONES:
-${optionsText}
-
-FORMATO DE RESPUESTA:
-🌐 FUENTES WEB CONSULTADAS:
-[Lista las URLs de las fuentes relevantes]
-
-📝 RESPUESTA (basada en las fuentes):
-- Respuesta correcta: [letra]
-- Justificación: [explicación breve citando las fuentes]`;
-
-        // Set up for analysis - React will show existing, DOM direct handles streaming
-        setCurrentAnalyzingIndex(index);
-        setAnalysisMode('append');
-        setPendingExamAnalysis({
-            examKey,
-            examData: JSON.stringify(questions),
-            originalExamData: originalData,
-            questionIndex: index,
-        });
-
-        setChatInputValue(prompt);
-        setTimeout(() => triggerSend(), 50);
-    }, [questions, examKey, originalData, setCurrentAnalyzingIndex, setAnalysisMode, setPendingExamAnalysis, setChatInputValue, triggerSend]);
-
     // Is option correct?
     const isCorrect = (question: ExamQuestion, letra: string) => {
         const rc = question.respuesta_correcta;
@@ -796,13 +755,6 @@ FORMATO DE RESPUESTA:
                             onClick={() => handleAnalyzeQuestion(idx)}
                         >
                             <Brain size={14} /> Analizar con Agente
-                        </button>
-                        <button
-                            className="btn-analyze"
-                            style={{ background: '#2563eb' }}
-                            onClick={() => handleWebSearch(idx)}
-                        >
-                            <Globe size={14} /> Buscar en Web
                         </button>
                         <button
                             className="btn-analyze"

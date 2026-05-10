@@ -276,11 +276,12 @@ def generate_html(questions: list[dict], title: str) -> str:
     }}
 
     .justification-text {{
-      color: #d1fae5;
+      color: #1e3a8a;
       font-size: 13.5px;
-      padding: 8px;
+      padding: 12px;
       border-radius: var(--radius-sm);
-      background: rgba(20, 83, 45, 0.35);
+      background: #fef9c3;
+      border: 1px solid #fde68a;
     }}
 
     .justification-text p {{
@@ -296,31 +297,25 @@ def generate_html(questions: list[dict], title: str) -> str:
       margin: 4px 0;
     }}
     .just-num {{
-      color: #ffffff;
+      color: #1e3a8a;
       font-weight: 700;
       flex-shrink: 0;
     }}
     .just-list-item {{
       padding-left: 12px;
-      color: #ecfdf5;
+      color: #1e3a8a;
       margin: 2px 0;
     }}
 
     hr.separator {{
       border: none;
-      border-top: 1px solid rgba(46, 160, 67, 0.25);
+      border-top: 1px solid rgba(30, 58, 138, 0.25);
       margin: 10px 0;
     }}
 
-    /* ── Print & PDF ──
-       Some viewers strip the page background. Force readable colors so
-       the justification still contrasts when the dark bg is missing. */
     @media print {{
       body {{ background: var(--bg-primary); padding: 12px; }}
       .exam-card {{ page-break-inside: avoid; }}
-      .justification-text {{ color: #14532d; background: #ecfdf5; }}
-      .just-num {{ color: #052e16; }}
-      .just-list-item {{ color: #166534; }}
     }}
   </style>
 </head>

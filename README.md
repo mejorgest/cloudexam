@@ -2,15 +2,15 @@
 
 Aplicación web app para análisis de exámenes médicos asistido por agente. Permite subir
 PDFs de exámenes, extraer las preguntas y opciones, y analizar cada pregunta
-con un agente ReAct (LangGraph) que razona sobre el contenido, busca en Google
-y consulta una base local de PDFs e imágenes médicas indexada en pgvector.
+con un agente ReAct (LangGraph) que razona sobre el contenido y consulta una
+base local de PDFs e imágenes médicas indexada en pgvector.
 
 ## Características
 
 - **Ingesta de exámenes**: sube PDFs/HTML de exámenes y la app extrae preguntas
-  con opciones de respuesta usando Gemini Vision.
-- **Análisis por pregunta**: cada pregunta tiene botones para analizar con el
-  agente o buscar evidencia en Google.
+  con opciones de respuesta usando OpenAI Vision.
+- **Análisis por pregunta**: cada pregunta tiene un botón para analizarla con
+  el agente.
 - **Workspace de archivos**: el agente trabaja sobre archivos guardados en
   `workspace/`; los cambios se versionan automáticamente con git checkpoints.
 - **Smart edit por archivo**: edita un archivo con una instrucción en
@@ -27,7 +27,7 @@ y consulta una base local de PDFs e imágenes médicas indexada en pgvector.
 |---|---|
 | Backend | FastAPI + Uvicorn |
 | Agente | LangChain + LangGraph (`create_react_agent`) |
-| LLM | OpenAI (gpt-4o / gpt-4o-mini) o Google Gemini |
+| LLM | OpenAI (gpt-4o / gpt-4o-mini) |
 | Vector DB | PostgreSQL + pgvector (vía LangChain PGVector) |
 | Frontend | React 19 + TypeScript + Vite |
 | State client | Zustand |
@@ -43,10 +43,9 @@ requirements1.txt                # dependencias Python
 .env.example                     # plantilla de variables de entorno
 
 servers/                         # módulos backend del agente
-├── react_tools/tools_loader.py  # registro de tools de LangGraph (5 tools)
+├── react_tools/tools_loader.py  # registro de tools de LangGraph
 ├── filesystem_service/          # read/write/list de archivos del workspace
 ├── smart_tools/smart_edit.py    # edición de archivos con LLM
-├── advanced_tools/google_search.py
 ├── medical_images_service.py    # imágenes médicas con embeddings
 ├── medical_keywords_extractor.py
 ├── keyword_rag_service.py
@@ -72,8 +71,8 @@ static/, templates/              # assets servidos por FastAPI
 ## Requisitos previos
 
 - **Docker** 20.10+ (recomendado para correr todo)
-- **API key de OpenAI** (obligatoria para que arranque el agente)
-- **API key de Gemini** (obligatoria si vas a subir PDFs de exámenes)
+- **API key de OpenAI** (obligatoria para que arranque el agente y para
+  extraer preguntas de PDFs)
 - **PostgreSQL 14+ con la extensión `pgvector`** — *opcional*, solo si vas
   a ingestar PDFs o imágenes médicas. La app arranca y el chat funciona sin
   base de datos. Si la usas, crea la base antes:
@@ -108,10 +107,6 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PWD=tu_password
 DB_NAME=mibase
-
-# Búsqueda en Google (opcional — solo si quieres usar la tool buscar_en_google)
-GOOGLE_SEARCH_API_KEY=...
-GOOGLE_SEARCH_CX=...
 ```
 
 ### Cómo obtener `OPENAI_API_KEY`
@@ -127,27 +122,6 @@ defecto `gpt-5-mini`) y también para extraer preguntas de los PDFs de exámenes
    ⚠️ Solo se muestra una vez — guárdala en tu gestor de contraseñas.
 4. OpenAI requiere **saldo prepagado**: ve a
    <https://platform.openai.com/account/billing> y carga al menos $5.
-
-### Cómo obtener `GOOGLE_SEARCH_API_KEY` y `GOOGLE_SEARCH_CX`
-
-La tool `buscar_en_google` usa la **Google Custom Search JSON API**, que
-requiere DOS credenciales:
-
-1. **`GOOGLE_SEARCH_API_KEY`** — API key de Google Cloud:
-   - Entra a <https://console.cloud.google.com/> y selecciona/crea un proyecto.
-   - Activa **Custom Search API** en
-     <https://console.cloud.google.com/apis/library/customsearch.googleapis.com>.
-   - Ve a **APIs & Services → Credentials → Create credentials → API key**.
-   - Copia la key.
-
-2. **`GOOGLE_SEARCH_CX`** — ID del Programmable Search Engine:
-   - Entra a <https://programmablesearchengine.google.com/> y haz clic en **Add**.
-   - Dale un nombre y, en *Sites to search*, activa **"Search the entire web"**.
-   - Crea el engine. En el panel del CSE copia el **Search engine ID**
-     (también llamado `cx`).
-
-> El plan gratuito de Custom Search permite **100 búsquedas/día**. Si lo
-> excedes, las llamadas devolverán un error 429.
 
 Variables opcionales:
 
@@ -276,7 +250,8 @@ El frontend de Vite corre en `http://localhost:5173` y proxy-ea `/api/*` y
 | `POST` | `/api/workspace/files/read` | Leer contenido de un archivo |
 | `POST` | `/api/workspace/files/write` | Escribir contenido |
 | `POST` | `/api/workspace/files/delete` | Borrar un archivo |
-| `POST` | `/api/exams/extract-from-pdf` | Extraer preguntas de un PDF de examen (Gemini Vision) |
+| `POST` | `/api/workspace/files/export-pdf` | Renderizar un examen JSON como PDF |
+| `POST` | `/api/exams/extract-from-pdf` | Extraer preguntas de un PDF de examen (OpenAI Vision) |
 | `POST` | `/api/medical-images/upload` | Subir imagen médica con keywords |
 | `GET`  | `/api/medical-images/search` | Buscar imágenes por keywords |
 | `POST` | `/api/medical-images/enrich` | Enriquecer respuesta con imágenes |
@@ -289,14 +264,12 @@ El frontend de Vite corre en `http://localhost:5173` y proxy-ea `/api/*` y
 
 ## Tools disponibles para el agente
 
-5 tools registradas en `servers/react_tools/tools_loader.py`:
+Tools registradas en `servers/react_tools/tools_loader.py`:
 
 - `read_file(filename)` — leer un archivo del workspace.
 - `write_file(filename, content)` — crear o sobrescribir un archivo.
 - `list_files(directory=".")` — listar archivos del workspace.
 - `smart_edit_file(filename, instruction)` — editar un archivo con LLM.
-- `buscar_en_google(query, target_file=None)` — buscar en internet; si se
-  pasa `target_file`, anexa los resultados a ese archivo.
 
 ## Healthcheck
 
