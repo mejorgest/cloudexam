@@ -30,8 +30,25 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     git \
     curl \
-    wkhtmltopdf \
+    ca-certificates \
+    fontconfig \
+    libxrender1 \
+    libxext6 \
+    libjpeg62-turbo \
+    libssl3 \
+    xfonts-base \
+    xfonts-75dpi \
     && rm -rf /var/lib/apt/lists/*
+
+# wkhtmltopdf was removed from Debian 12; install the upstream patched-Qt build
+RUN ARCH="$(dpkg --print-architecture)" \
+ && curl -fsSL -o /tmp/wkhtmltox.deb \
+      "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_${ARCH}.deb" \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends /tmp/wkhtmltox.deb \
+ && rm -f /tmp/wkhtmltox.deb \
+ && rm -rf /var/lib/apt/lists/* \
+ && wkhtmltopdf --version
 
 # Configure git for versioning system
 RUN git config --global --add safe.directory /app/workspace && \
