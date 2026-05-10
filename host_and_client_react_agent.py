@@ -364,22 +364,59 @@ async def extract_exam_from_pdf(
     try:
         # Import textractor
         from textractor_robust import process_pdf, simplify_questions
-        
+        from servers.filesystem_service.file_operations import _log_change
+
         # Save PDF to temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             pdf_content = await pdf.read()
             tmp.write(pdf_content)
             tmp_path = tmp.name
-        
+
         logger.info(f"🤖 Extracting exam from PDF: {pdf.filename}")
-        
+
+        pdf_label = pdf.filename or "PDF"
+
+        def _on_progress(event: str, data: dict) -> None:
+            if event == "start":
+                _log_change(
+                    "pdf_extract",
+                    pdf_label,
+                    f"start: {data.get('total_pages', '?')} páginas",
+                )
+            elif event == "page_done":
+                page = data.get("page", "?")
+                total = data.get("total", "?")
+                qs = data.get("questions", 0)
+                _log_change(
+                    "pdf_extract",
+                    pdf_label,
+                    f"página {page}/{total} → {qs} pregunta(s)",
+                )
+            elif event == "page_error":
+                page = data.get("page", "?")
+                total = data.get("total", "?")
+                _log_change(
+                    "pdf_extract",
+                    pdf_label,
+                    f"página {page}/{total} ❌ {data.get('error', 'error')}",
+                )
+            elif event == "merging":
+                _log_change("pdf_extract", pdf_label, "fusionando preguntas cortadas…")
+            elif event == "complete":
+                _log_change(
+                    "pdf_extract",
+                    pdf_label,
+                    f"completado: {data.get('total_questions', 0)} preguntas",
+                )
+
         try:
             # Process PDF with textractor (OpenAI Vision)
             result = process_pdf(
                 pdf_path=tmp_path,
                 output_path=None,  # Don't save intermediate files
                 verbose=True,
-                simplify=False  # We'll simplify ourselves
+                simplify=False,  # We'll simplify ourselves
+                progress_callback=_on_progress,
             )
             
             # Get simplified questions

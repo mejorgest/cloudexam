@@ -18,7 +18,7 @@ import json
 import base64
 import argparse
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Callable
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_VISION_MODEL = os.environ.get("OPENAI_VISION_MODEL", "gpt-5.4-mini")
@@ -494,44 +494,69 @@ def simplify_questions(questions: List[Dict]) -> List[Dict]:
 # PROCESAMIENTO PRINCIPAL
 # =============================================================================
 
-def process_pdf(pdf_path: str, output_path: Optional[str] = None, 
+def process_pdf(pdf_path: str, output_path: Optional[str] = None,
                 start_page: int = 0, end_page: Optional[int] = None,
-                verbose: bool = True, simplify: bool = True) -> dict:
+                verbose: bool = True, simplify: bool = True,
+                progress_callback: Optional[Callable[[str, dict], None]] = None) -> dict:
     """
     Procesa un PDF completo extrayendo preguntas de cada página.
+
+    progress_callback recibe (event, data) en momentos clave:
+      - "start"       : {"file", "total_pages", "start_page", "end_page"}
+      - "page_done"   : {"page", "total", "questions", "continuation", "incomplete"}
+      - "page_error"  : {"page", "total", "error"}
+      - "merging"     : {}
+      - "complete"    : {"total_questions"}
     """
+    def _emit(event: str, data: dict) -> None:
+        if progress_callback is None:
+            return
+        try:
+            progress_callback(event, data)
+        except Exception:
+            pass
+
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"No se encontró el archivo: {pdf_path}")
-    
+
     if verbose:
         print(f"🤖 Inicializando OpenAI Vision ({OPENAI_VISION_MODEL})...")
     model = setup_vision_model()
-    
+
     total_pages = get_pdf_page_count(pdf_path)
     end_page = end_page if end_page is not None else total_pages
     end_page = min(end_page, total_pages)
-    
+
+    pdf_basename = os.path.basename(pdf_path)
+
     if verbose:
-        print(f"📄 PDF: {os.path.basename(pdf_path)}")
+        print(f"📄 PDF: {pdf_basename}")
         print(f"📊 Total de páginas: {total_pages}")
         print(f"📖 Procesando páginas {start_page + 1} a {end_page}")
         print("-" * 50)
-    
+
+    _emit("start", {
+        "file": pdf_basename,
+        "total_pages": total_pages,
+        "start_page": start_page + 1,
+        "end_page": end_page,
+    })
+
     pages_data = []
-    
+
     for page_num in range(start_page, end_page):
         if verbose:
             print(f"⏳ Procesando página {page_num + 1}/{end_page}...", end=" ", flush=True)
-        
+
         try:
             image_bytes = pdf_page_to_image(pdf_path, page_num)
             page_result = extract_questions_from_page(model, image_bytes, page_num)
             pages_data.append(page_result)
-            
+
             num_questions = len(safe_list(safe_get(page_result, "preguntas")))
             has_continuation = bool(safe_str(safe_get(page_result, "contenido_inicio_continuacion")))
             is_incomplete = bool(safe_get(page_result, "pregunta_final_incompleta", False))
-            
+
             if verbose:
                 status_parts = []
                 if num_questions > 0:
@@ -540,16 +565,29 @@ def process_pdf(pdf_path: str, output_path: Optional[str] = None,
                     status_parts.append("📎 continuación detectada")
                 if is_incomplete:
                     status_parts.append("✂️ pregunta cortada al final")
-                
+
                 if status_parts:
                     print(f"✅ {', '.join(status_parts)}")
                 else:
                     print(f"ℹ️  Sin preguntas")
-                    
+
+            _emit("page_done", {
+                "page": page_num + 1,
+                "total": end_page,
+                "questions": num_questions,
+                "continuation": has_continuation,
+                "incomplete": is_incomplete,
+            })
+
         except Exception as e:
             if verbose:
                 print(f"❌ Error: {str(e)}")
             pages_data.append(create_empty_page_result(page_num, f"Error: {str(e)}"))
+            _emit("page_error", {
+                "page": page_num + 1,
+                "total": end_page,
+                "error": str(e),
+            })
         
         # Delay between pages to respect API rate limits (even on paid plans)
         import time
@@ -575,7 +613,9 @@ def process_pdf(pdf_path: str, output_path: Optional[str] = None,
     if verbose:
         print("-" * 50)
         print("🔗 Fusionando preguntas cortadas entre páginas...")
-    
+
+    _emit("merging", {})
+
     merged_pages = merge_split_questions(pages_data)
     all_questions = consolidate_questions(merged_pages)
     
@@ -591,6 +631,8 @@ def process_pdf(pdf_path: str, output_path: Optional[str] = None,
     if verbose:
         print(f"🎉 Proceso completado!")
         print(f"📊 Total de preguntas extraídas: {result['total_preguntas']}")
+
+    _emit("complete", {"total_questions": result["total_preguntas"]})
     
     # Guardar resultado completo
     if output_path:
