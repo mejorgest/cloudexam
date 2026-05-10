@@ -360,7 +360,8 @@ async def extract_exam_from_pdf(
     """
     import tempfile
     import json
-    
+    import asyncio
+
     try:
         # Import textractor
         from textractor_robust import process_pdf, simplify_questions
@@ -410,12 +411,15 @@ async def extract_exam_from_pdf(
                 )
 
         try:
-            # Process PDF with textractor (OpenAI Vision)
-            result = process_pdf(
+            # Process PDF with textractor (OpenAI Vision). Runs in a worker
+            # thread so the event loop stays free to serve /api/debug/changelog
+            # polls and other requests while extraction (60s+) is in progress.
+            result = await asyncio.to_thread(
+                process_pdf,
                 pdf_path=tmp_path,
-                output_path=None,  # Don't save intermediate files
+                output_path=None,
                 verbose=True,
-                simplify=False,  # We'll simplify ourselves
+                simplify=False,
                 progress_callback=_on_progress,
             )
             
