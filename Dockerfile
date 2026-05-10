@@ -30,6 +30,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     git \
     curl \
+    wkhtmltopdf \
     && rm -rf /var/lib/apt/lists/*
 
 # Configure git for versioning system
