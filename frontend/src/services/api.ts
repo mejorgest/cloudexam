@@ -43,6 +43,27 @@ export async function deleteFile(filename: string): Promise<void> {
     if (!response.ok) throw new Error('Failed to delete file');
 }
 
+export async function exportFilePdf(filename: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/api/workspace/files/export-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename }),
+    });
+    if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(`Failed to export PDF: ${detail || response.statusText}`);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.replace(/\.json$/i, '') + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
 // ============== Exam extraction API ==============
 
 export async function extractExamFromPdf(file: File, outputName: string): Promise<{

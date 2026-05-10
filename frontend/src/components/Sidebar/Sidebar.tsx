@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, memo } from 'react';
 import { useAppStore } from '../../store/appStore';
-import { deleteFile, readFile, extractExamFromPdf } from '../../services/api';
+import { deleteFile, readFile, extractExamFromPdf, exportFilePdf } from '../../services/api';
 import { ChevronDown, Plus, FolderOpen, FileText, Loader2 } from 'lucide-react';
 
 export function Sidebar() {
@@ -67,6 +67,21 @@ export function Sidebar() {
             console.error('Delete error:', error);
         }
     }, []);
+
+    const [exportingFile, setExportingFile] = useState<string | null>(null);
+    const handleExportPdf = useCallback(async (name: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (exportingFile) return;
+        setExportingFile(name);
+        try {
+            await exportFilePdf(name);
+        } catch (error) {
+            console.error('Export PDF error:', error);
+            window.alert(`No se pudo exportar PDF: ${error instanceof Error ? error.message : error}`);
+        } finally {
+            setExportingFile(null);
+        }
+    }, [exportingFile]);
 
     const handleCreateFile = useCallback(() => {
         const name = prompt('Nombre del nuevo archivo (ej: notes.txt):');
@@ -144,8 +159,11 @@ export function Sidebar() {
                                     icon={file.name.endsWith('.json') ? '📋' : '📝'}
                                     selected={selectedKey === `file:${file.name}`}
                                     isAttached={attachedFiles.some(f => f.type === 'file' && f.name === file.name)}
+                                    canExportPdf={file.name.toLowerCase().endsWith('.json')}
+                                    isExporting={exportingFile === file.name}
                                     onSelect={() => handleSelectFile(file.name)}
                                     onAttach={() => handleAttachFile(file.name)}
+                                    onExportPdf={(e) => handleExportPdf(file.name, e)}
                                     onDelete={(e) => handleDeleteFile(file.name, e)}
                                 />
                             ))
@@ -293,12 +311,15 @@ interface TreeItemProps {
     icon: string;
     selected: boolean;
     isAttached: boolean;
+    canExportPdf?: boolean;
+    isExporting?: boolean;
     onSelect: () => void;
     onAttach: () => void;
+    onExportPdf?: (e: React.MouseEvent) => void;
     onDelete: (e: React.MouseEvent) => void;
 }
 
-const TreeItem = memo(function TreeItem({ name, icon, selected, isAttached, onSelect, onAttach, onDelete }: TreeItemProps) {
+const TreeItem = memo(function TreeItem({ name, icon, selected, isAttached, canExportPdf, isExporting, onSelect, onAttach, onExportPdf, onDelete }: TreeItemProps) {
     return (
         <div
             className={`tree-item ${selected ? 'selected' : ''}`}
@@ -314,6 +335,16 @@ const TreeItem = memo(function TreeItem({ name, icon, selected, isAttached, onSe
                 >
                     {isAttached ? '✓' : '📎'}
                 </button>
+                {canExportPdf && onExportPdf && (
+                    <button
+                        className="tree-item-btn"
+                        onClick={onExportPdf}
+                        disabled={isExporting}
+                        title={isExporting ? 'Exportando…' : 'Exportar PDF'}
+                    >
+                        {isExporting ? '⏳' : '📄'}
+                    </button>
+                )}
                 <button
                     className="tree-item-btn danger"
                     onClick={onDelete}

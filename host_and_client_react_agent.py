@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, WebSocket
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -343,6 +343,78 @@ async def delete_workspace_file(payload: dict):
     except Exception as e:
         logger.error(f"Error deleting file: {e}")
         return {"error": str(e)}
+
+@app.post("/api/workspace/files/export-pdf")
+async def export_workspace_file_pdf(payload: dict):
+    """Renderiza un examen JSON del workspace como PDF con el estilo del visor."""
+    import asyncio
+    import tempfile
+    import subprocess
+    from pathlib import Path
+
+    filename = (payload.get("filename") or "").strip()
+    if not filename:
+        raise HTTPException(status_code=400, detail="No se especificó el archivo")
+    if not filename.lower().endswith(".json"):
+        raise HTTPException(status_code=400, detail="Solo se pueden exportar archivos .json")
+
+    from servers.filesystem_service.file_operations import read_file
+    from export_exam_pdf import load_exam, generate_html
+
+    try:
+        raw = read_file(filename)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"No se pudo leer {filename}: {e}")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        json_path = tmp / Path(filename).name
+        json_path.write_text(raw, encoding="utf-8")
+        try:
+            questions = load_exam(str(json_path))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"JSON inválido: {e}")
+
+        title = json_path.stem.replace("_", " ").title()
+        html_path = tmp / "exam.html"
+        pdf_path = tmp / "exam.pdf"
+        html_path.write_text(generate_html(questions, title), encoding="utf-8")
+
+        cmd = [
+            "wkhtmltopdf",
+            "--enable-local-file-access",
+            "--page-size", "A4",
+            "--margin-top", "15mm",
+            "--margin-bottom", "15mm",
+            "--margin-left", "12mm",
+            "--margin-right", "12mm",
+            "--encoding", "utf-8",
+            "--no-outline",
+            "--footer-center", f"{title} — Página [page] de [topage]",
+            "--footer-font-size", "9",
+            "--footer-spacing", "5",
+            str(html_path),
+            str(pdf_path),
+        ]
+
+        def _run() -> subprocess.CompletedProcess:
+            return subprocess.run(cmd, capture_output=True, text=True)
+
+        result = await asyncio.to_thread(_run)
+        if result.returncode != 0 or not pdf_path.exists():
+            logger.error(f"wkhtmltopdf failed: {result.stderr}")
+            raise HTTPException(status_code=500, detail=f"wkhtmltopdf error: {result.stderr[:500]}")
+
+        pdf_bytes = pdf_path.read_bytes()
+
+    download_name = Path(filename).with_suffix(".pdf").name
+    logger.info(f"📄 Exported PDF: {filename} → {download_name} ({len(pdf_bytes)} bytes)")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
+    )
+
 # ============== FILE IMPORT ENDPOINT ==============
 
 # ============== EXAM EXTRACTION FROM PDF ==============
