@@ -6,7 +6,7 @@ Este script unifica textractor.py y simplificar.py en una sola herramienta
 que es más tolerante a campos vacíos/nulos y procesa todo automáticamente.
 
 Características:
-- Extracción de PDFs con Gemini AI Vision
+- Extracción de PDFs con OpenAI Vision (gpt-5.4-mini por defecto)
 - Tolerante a campos vacíos o nulos
 - Fusión automática de preguntas cortadas entre páginas
 - Simplificación y limpieza del output
@@ -15,32 +15,32 @@ Características:
 
 import os
 import json
+import base64
 import argparse
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-# Gemini API key — required at runtime, no hardcoded fallback.
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_VISION_MODEL = os.environ.get("OPENAI_VISION_MODEL", "gpt-5.4-mini")
 
-# Imports opcionales (solo necesarios para procesamiento de PDF)
 fitz = None
-genai_client = None
+openai_client = None
 
 def _ensure_pdf_dependencies():
     """Carga las dependencias necesarias para procesar PDFs."""
-    global fitz, genai_client
+    global fitz, openai_client
     if fitz is None:
         try:
             import fitz as _fitz
             fitz = _fitz
         except ImportError:
             raise ImportError("PyMuPDF (fitz) no está instalado. Ejecuta: pip install pymupdf")
-    if genai_client is None:
+    if openai_client is None:
         try:
-            from google import genai
-            genai_client = genai.Client(api_key=GEMINI_API_KEY)
+            from openai import OpenAI
+            openai_client = OpenAI(api_key=OPENAI_API_KEY)
         except ImportError:
-            raise ImportError("google-genai no está instalado. Ejecuta: pip install google-genai")
+            raise ImportError("openai no está instalado. Ejecuta: pip install openai")
 
 
 # =============================================================================
@@ -115,13 +115,13 @@ def clean_question(q: Dict) -> Dict:
 
 
 # =============================================================================
-# EXTRACCIÓN CON GEMINI (TOLERANTE A ERRORES)
+# EXTRACCIÓN CON OPENAI VISION (TOLERANTE A ERRORES)
 # =============================================================================
 
-def setup_gemini():
-    """Configura la API de Gemini y retorna el nombre del modelo."""
+def setup_vision_model():
+    """Configura el cliente de OpenAI y retorna el nombre del modelo."""
     _ensure_pdf_dependencies()
-    return 'gemini-2.0-flash'
+    return OPENAI_VISION_MODEL
 
 
 def pdf_page_to_image(pdf_path: str, page_num: int, dpi: int = 200) -> bytes:
@@ -150,18 +150,14 @@ def get_pdf_page_count(pdf_path: str) -> int:
 
 def extract_questions_from_page(model_name: str, image_bytes: bytes, page_num: int) -> dict:
     """
-    Usa Gemini AI para extraer preguntas, TOLERANTE A ERRORES.
-    Usa el nuevo SDK google.genai. Incluye retry con backoff para 429.
+    Usa OpenAI Vision para extraer preguntas, TOLERANTE A ERRORES.
+    Incluye retry con backoff para 429.
     """
     import time
-    from google.genai import types
-    
-    # Crear la parte de imagen para el nuevo SDK
-    image_part = types.Part.from_bytes(
-        data=image_bytes,
-        mime_type='image/png'
-    )
-    
+
+    image_b64 = base64.b64encode(image_bytes).decode("ascii")
+    image_data_url = f"data:image/png;base64,{image_b64}"
+
     prompt = """Eres un experto transcribiendo exámenes. Analiza esta imagen de un examen o evaluación y extrae TODAS las preguntas con sus opciones de respuesta.
 
 INSTRUCCIONES CRÍTICAS:
@@ -211,47 +207,50 @@ Responde ÚNICAMENTE con JSON válido:
 
 IMPORTANTE: NUNCA uses null, usa strings vacíos "" o arrays vacíos [] en su lugar."""
 
-    # Retry with exponential backoff for rate limiting (429)
     max_retries = 5
-    base_delay = 5  # seconds
-    
+    base_delay = 5
+
     for attempt in range(max_retries + 1):
         try:
-            # Usar el nuevo SDK google.genai
-            response = genai_client.models.generate_content(
+            response = openai_client.chat.completions.create(
                 model=model_name,
-                contents=[prompt, image_part]
+                response_format={"type": "json_object"},
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": image_data_url}},
+                        ],
+                    }
+                ],
             )
-            response_text = response.text
-            
-            # Limpiar la respuesta para extraer JSON
+            response_text = response.choices[0].message.content or ""
+
             if "```json" in response_text:
                 response_text = response_text.split("```json")[1].split("```")[0]
             elif "```" in response_text:
                 response_text = response_text.split("```")[1].split("```")[0]
-            
+
             result = json.loads(response_text.strip())
-            
-            # Sanitizar el resultado para asegurar que no haya nulls
             result = sanitize_page_result(result, page_num)
             return result
-            
+
         except json.JSONDecodeError as e:
-            return create_empty_page_result(page_num, f"Error al parsear respuesta de Gemini: {str(e)}")
+            return create_empty_page_result(page_num, f"Error al parsear respuesta de OpenAI: {str(e)}")
         except Exception as e:
             error_str = str(e).lower()
-            # Check for rate limiting (429) or resource exhausted errors
             is_rate_limit = any(keyword in error_str for keyword in [
                 '429', 'rate limit', 'too many requests', 'resource exhausted',
                 'quota', 'resourceexhausted'
             ])
-            
+
             if is_rate_limit and attempt < max_retries:
-                delay = min(base_delay * (2 ** attempt), 60)  # 5, 10, 20, 40, 60
+                delay = min(base_delay * (2 ** attempt), 60)
                 print(f"\n⚠️  Rate limited (429), esperando {delay}s antes de reintentar (intento {attempt + 1}/{max_retries})...", flush=True)
                 time.sleep(delay)
                 continue
-            
+
             return create_empty_page_result(page_num, f"Error al procesar página: {str(e)}")
 
 
@@ -505,8 +504,8 @@ def process_pdf(pdf_path: str, output_path: Optional[str] = None,
         raise FileNotFoundError(f"No se encontró el archivo: {pdf_path}")
     
     if verbose:
-        print("🤖 Inicializando Gemini AI...")
-    model = setup_gemini()
+        print(f"🤖 Inicializando OpenAI Vision ({OPENAI_VISION_MODEL})...")
+    model = setup_vision_model()
     
     total_pages = get_pdf_page_count(pdf_path)
     end_page = end_page if end_page is not None else total_pages
@@ -673,7 +672,7 @@ def process_existing_json(input_path: str, output_path: Optional[str] = None, ve
 def main():
     """Punto de entrada principal del script."""
     parser = argparse.ArgumentParser(
-        description="Extrae preguntas de exámenes desde PDFs usando Gemini AI (versión robusta)",
+        description="Extrae preguntas de exámenes desde PDFs usando OpenAI Vision (versión robusta)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos de uso:

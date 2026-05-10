@@ -98,12 +98,9 @@ cp .env.example .env
 Edita `.env` con tus valores:
 
 ```bash
-# LLM principal del agente (OBLIGATORIO — sin esto el agente no arranca)
+# LLM principal del agente y extracción de PDFs (OBLIGATORIO — sin esto el
+# agente no arranca y el endpoint /api/exams/extract-from-pdf falla)
 OPENAI_API_KEY=sk-...
-
-# Extracción de preguntas de PDF con Gemini Vision (obligatorio para subir
-# exámenes en PDF; el resto de la app funciona sin él)
-GEMINI_API_KEY=...
 
 # Postgres con pgvector (opcional — solo para ingestar PDFs e imágenes médicas)
 DB_HOST=localhost     # o el host de tu Postgres
@@ -120,8 +117,9 @@ GOOGLE_SEARCH_CX=...
 ### Cómo obtener `OPENAI_API_KEY`
 
 La app usa OpenAI como LLM principal del agente (modelo configurable; por
-defecto `gpt-5-mini`). Sin esta key el agente **no se inicializa** —
-el backend arranca pero el chat no funciona.
+defecto `gpt-5-mini`) y también para extraer preguntas de los PDFs de exámenes
+(`textractor_robust.py` con `gpt-5.4-mini` vision). Sin esta key el agente
+**no se inicializa** y el endpoint `/api/exams/extract-from-pdf` falla.
 
 1. Entra a <https://platform.openai.com/signup> y crea una cuenta (o haz login).
 2. Ve a <https://platform.openai.com/api-keys> y haz clic en **Create new secret key**.
@@ -129,18 +127,6 @@ el backend arranca pero el chat no funciona.
    ⚠️ Solo se muestra una vez — guárdala en tu gestor de contraseñas.
 4. OpenAI requiere **saldo prepagado**: ve a
    <https://platform.openai.com/account/billing> y carga al menos $5.
-
-### Cómo obtener `GEMINI_API_KEY`
-
-La app usa Gemini para extraer preguntas y opciones de los PDFs de exámenes
-(`textractor_robust.py` con `gemini-2.0-flash`). Sin esta key, el endpoint
-`/api/exams/extract-from-pdf` falla.
-
-1. Entra a <https://aistudio.google.com/apikey> con tu cuenta de Google.
-2. Haz clic en **Create API key** (selecciona o crea un proyecto de Google Cloud).
-3. Copia la key (empieza con `AIza...`).
-4. El uso de Gemini Flash tiene un **tier gratuito** generoso (15 req/min,
-   1M tokens/día) — suficiente para uso personal sin tarjeta de crédito.
 
 ### Cómo obtener `GOOGLE_SEARCH_API_KEY` y `GOOGLE_SEARCH_CX`
 
@@ -331,10 +317,10 @@ un contenedor, `localhost` apunta al contenedor mismo, no al host — usa
 Falta instalar pgvector en Postgres. Usa la imagen `pgvector/pgvector:pg16`
 en lugar de `postgres:16`, o instala la extensión manualmente.
 
-**`OPENAI_API_KEY not set` / `GEMINI_API_KEY not set`**
+**`OPENAI_API_KEY not set`**
 La key no se cargó. Confirma que `.env` esté en la raíz y que `--env-file .env`
-esté en el comando de `docker run`. Alternativamente, configúralas desde la
-pantalla "Configuración" de la UI (se persisten en `data/secrets.json`).
+esté en el comando de `docker run`. Alternativamente, configúrala desde la
+pantalla "Configuración" de la UI (se persiste en `data/secrets.json`).
 
 **El frontend muestra "Failed to fetch"**
 El backend no está corriendo o el puerto no coincide. Verifica que

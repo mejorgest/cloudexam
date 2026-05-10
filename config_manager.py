@@ -27,15 +27,8 @@ MANAGED_KEYS: dict[str, dict[str, Any]] = {
         "label": "OpenAI API Key",
         "required": True,
         "secret": True,
-        "help": "Used by the main agent (gpt-5-mini) and other OpenAI-backed tools.",
+        "help": "Used by the main agent (gpt-5-mini) and PDF exam extraction (gpt-5.4-mini vision).",
         "validate_prefix": "sk-",
-    },
-    "GEMINI_API_KEY": {
-        "label": "Google Gemini API Key",
-        "required": False,
-        "secret": True,
-        "help": "Used by Gemini-backed tools (textractor, image analysis).",
-        "validate_prefix": "",
     },
     "DB_HOST": {
         "label": "Postgres host",

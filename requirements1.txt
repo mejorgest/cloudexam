@@ -108,6 +108,5 @@ psycopg[binary]
 pgvector
 nest-asyncio
 pymupdf
-google-genai
 langgraph-checkpoint-sqlite
 aiosqlite

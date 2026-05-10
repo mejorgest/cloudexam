@@ -354,7 +354,7 @@ async def extract_exam_from_pdf(
     output_name: str = Form("examen_extraido")
 ):
     """
-    Extracts exam questions from a PDF using Gemini AI Vision (textractor_robust.py).
+    Extracts exam questions from a PDF using OpenAI Vision (textractor_robust.py).
     Saves the result as a JSON file in the workspace in the format recognized by ExamViewer.
     This is DIFFERENT from /api/upload/pdf which stores PDFs in the vector store.
     """
@@ -374,7 +374,7 @@ async def extract_exam_from_pdf(
         logger.info(f"🤖 Extracting exam from PDF: {pdf.filename}")
         
         try:
-            # Process PDF with textractor (Gemini AI Vision)
+            # Process PDF with textractor (OpenAI Vision)
             result = process_pdf(
                 pdf_path=tmp_path,
                 output_path=None,  # Don't save intermediate files
