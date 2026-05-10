@@ -317,10 +317,9 @@ async def write_workspace_file(payload: dict):
         if not filename:
             return {"error": "No se especificó el archivo"}
         
-        from servers.filesystem_service.file_operations import write_file, _log_change
+        from servers.filesystem_service.file_operations import write_file
         result = write_file(filename, content)
-        _log_change("WRITE_FILE", filename, content[:100] + "..." if len(content) > 100 else content)
-        
+
         logger.info(f"💾 File written: {filename} ({len(content)} chars)")
         return {"success": True, "filename": filename, "message": result}
     except Exception as e:
