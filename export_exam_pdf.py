@@ -276,10 +276,11 @@ def generate_html(questions: list[dict], title: str) -> str:
     }}
 
     .justification-text {{
-      color: #4ade80;
+      color: #d1fae5;
       font-size: 13.5px;
       padding: 8px;
       border-radius: var(--radius-sm);
+      background: rgba(20, 83, 45, 0.35);
     }}
 
     .justification-text p {{
@@ -295,13 +296,13 @@ def generate_html(questions: list[dict], title: str) -> str:
       margin: 4px 0;
     }}
     .just-num {{
-      color: #86efac;
+      color: #ffffff;
       font-weight: 700;
       flex-shrink: 0;
     }}
     .just-list-item {{
       padding-left: 12px;
-      color: #a7f3d0;
+      color: #ecfdf5;
       margin: 2px 0;
     }}
 
@@ -311,18 +312,23 @@ def generate_html(questions: list[dict], title: str) -> str:
       margin: 10px 0;
     }}
 
-    /* ── Print & PDF ── */
+    /* ── Print & PDF ──
+       Some viewers strip the page background. Force readable colors so
+       the justification still contrasts when the dark bg is missing. */
     @media print {{
       body {{ background: var(--bg-primary); padding: 12px; }}
       .exam-card {{ page-break-inside: avoid; }}
+      .justification-text {{ color: #14532d; background: #ecfdf5; }}
+      .just-num {{ color: #052e16; }}
+      .just-list-item {{ color: #166534; }}
     }}
   </style>
 </head>
 <body>
   <div class="cover">
     <h1>{html.escape(title)}</h1>
-    <div class="subtitle">Examen CENDEISS — Banco de Microbiología y Hematología</div>
-    <div class="badge">{total} preguntas resueltas</div>
+    <div class="subtitle">Resuelto con CloudExam</div>
+    <div class="badge">{total} {"pregunta" if total == 1 else "preguntas"}</div>
   </div>
 
   <div class="exam-container">

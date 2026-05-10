@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, memo } from 'react';
 import { useAppStore } from '../../store/appStore';
-import { deleteFile, readFile, extractExamFromPdf, exportFilePdf } from '../../services/api';
+import { deleteFile, extractExamFromPdf, exportFilePdf } from '../../services/api';
 import { ChevronDown, Plus, FolderOpen, FileText, Loader2 } from 'lucide-react';
 
 export function Sidebar() {
@@ -9,8 +9,6 @@ export function Sidebar() {
         selectedKey,
         openTab,
         setSelectedKey,
-        addAttachedFile,
-        attachedFiles,
         toggleDebug,
         debugOpen,
         a2uiImagesEnabled,
@@ -37,25 +35,6 @@ export function Sidebar() {
         setSelectedKey(key);
         closeOnMobile();
     }, [openTab, setSelectedKey, closeOnMobile]);
-
-    // Attach a file's content to the chat context.
-    const handleAttachFile = useCallback(async (name: string) => {
-        let content = '';
-        try {
-            const data = await readFile(name);
-            content = data.content || '';
-        } catch (e) {
-            console.error('Error reading file for attach:', e);
-            return;
-        }
-
-        const isAlreadyAttached = attachedFiles.some(
-            f => f.type === 'file' && f.name === name
-        );
-        if (!isAlreadyAttached) {
-            addAttachedFile({ type: 'file', name, content });
-        }
-    }, [attachedFiles, addAttachedFile]);
 
     const handleDeleteFile = useCallback(async (name: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -158,11 +137,9 @@ export function Sidebar() {
                                     name={file.name}
                                     icon={file.name.endsWith('.json') ? '📋' : '📝'}
                                     selected={selectedKey === `file:${file.name}`}
-                                    isAttached={attachedFiles.some(f => f.type === 'file' && f.name === file.name)}
                                     canExportPdf={file.name.toLowerCase().endsWith('.json')}
                                     isExporting={exportingFile === file.name}
                                     onSelect={() => handleSelectFile(file.name)}
-                                    onAttach={() => handleAttachFile(file.name)}
                                     onExportPdf={(e) => handleExportPdf(file.name, e)}
                                     onDelete={(e) => handleDeleteFile(file.name, e)}
                                 />
@@ -310,16 +287,14 @@ interface TreeItemProps {
     name: string;
     icon: string;
     selected: boolean;
-    isAttached: boolean;
     canExportPdf?: boolean;
     isExporting?: boolean;
     onSelect: () => void;
-    onAttach: () => void;
     onExportPdf?: (e: React.MouseEvent) => void;
     onDelete: (e: React.MouseEvent) => void;
 }
 
-const TreeItem = memo(function TreeItem({ name, icon, selected, isAttached, canExportPdf, isExporting, onSelect, onAttach, onExportPdf, onDelete }: TreeItemProps) {
+const TreeItem = memo(function TreeItem({ name, icon, selected, canExportPdf, isExporting, onSelect, onExportPdf, onDelete }: TreeItemProps) {
     return (
         <div
             className={`tree-item ${selected ? 'selected' : ''}`}
@@ -328,13 +303,6 @@ const TreeItem = memo(function TreeItem({ name, icon, selected, isAttached, canE
             <span className="tree-item-icon">{icon}</span>
             <span className="tree-item-name">{name}</span>
             <div className="tree-item-actions">
-                <button
-                    className="tree-item-btn"
-                    onClick={(e) => { e.stopPropagation(); onAttach(); }}
-                    title={isAttached ? 'Ya adjunto' : 'Adjuntar al contexto'}
-                >
-                    {isAttached ? '✓' : '📎'}
-                </button>
                 {canExportPdf && onExportPdf && (
                     <button
                         className="tree-item-btn"
